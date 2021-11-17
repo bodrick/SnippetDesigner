@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -12,22 +12,10 @@ namespace SnippetDesignerComponents
 {
     public class SnippetReplacementTagger : ITagger<ClassificationTag>
     {
-        private readonly IClassificationType classificationType;
         public const string ReplacementDelimiter = "ReplacementDelimiter";
         public const string TaggerInstance = "TaggerInstance";
-
-        private ITextView View { get; set; }
-        private ITextBuffer SourceBuffer { get; set; }
-        private ITextSearchService TextSearchService { get; set; }
-        private ITextStructureNavigator TextStructureNavigator { get; set; }
+        private readonly IClassificationType classificationType;
         private readonly object updateLock = new object();
-
-
-        public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
-
-        // The current set of replacements to highlight
-        private NormalizedSnapshotSpanCollection WordSpans { get; set; }
-
 
         public SnippetReplacementTagger(ITextView view, ITextBuffer sourceBuffer, ITextSearchService textSearchService,
                                         ITextStructureNavigator textStructureNavigator, IClassificationType classificationType)
@@ -37,7 +25,7 @@ namespace SnippetDesignerComponents
             SourceBuffer = sourceBuffer;
             TextSearchService = textSearchService;
             TextStructureNavigator = textStructureNavigator;
-            
+
             WordSpans = new NormalizedSnapshotSpanCollection();
 
             View.LayoutChanged += ViewLayoutChanged;
@@ -45,21 +33,62 @@ namespace SnippetDesignerComponents
             View.Properties[TaggerInstance] = this;
 
             UpdateSnippetReplacementAdornmentsAsync();
-
         }
 
-        public void UpdateSnippetReplacementAdornmentsAsync()
-        {
-            ThreadPool.QueueUserWorkItem(UpdateSnippetReplacementAdornments);
-        }
+        public event EventHandler<SnapshotSpanEventArgs> TagsChanged;
 
+        private ITextBuffer SourceBuffer { get; set; }
+        private ITextSearchService TextSearchService { get; set; }
+        private ITextStructureNavigator TextStructureNavigator { get; set; }
+        private ITextView View { get; set; }
 
-        private void ViewLayoutChanged(object sender, TextViewLayoutChangedEventArgs e)
+        // The current set of replacements to highlight
+        private NormalizedSnapshotSpanCollection WordSpans { get; set; }
+
+        public IEnumerable<ITagSpan<ClassificationTag>> GetTags(NormalizedSnapshotSpanCollection spans)
         {
-            // If a new snapshot wasn't generated, then skip this layout
-            if (e.NewViewState.EditSnapshot != e.OldViewState.EditSnapshot)
+            // Hold on to a "snapshot" of the word spans, so that we maintain the same
+            // collection throughout
+            var wordSpans = WordSpans;
+
+            if (spans.Count == 0 || WordSpans.Count == 0)
             {
-                ThreadPool.QueueUserWorkItem(UpdateSnippetReplacementAdornments);
+                yield break;
+            }
+
+            // If the requested snapshot isn't the same as the one our words are on, translate our spans
+            // to the expected snapshot
+            if (spans[0].Snapshot != wordSpans[0].Snapshot)
+            {
+                wordSpans = new NormalizedSnapshotSpanCollection(
+                    wordSpans.Select(span => span.TranslateTo(spans[0].Snapshot, SpanTrackingMode.EdgeExclusive)));
+            }
+
+            // Yield all the replacement spans in the file
+            foreach (var span in NormalizedSnapshotSpanCollection.Overlap(spans, wordSpans))
+            {
+                yield return new TagSpan<ClassificationTag>(span, new ClassificationTag(classificationType));
+            }
+        }
+
+        public void UpdateSnippetReplacementAdornmentsAsync() => ThreadPool.QueueUserWorkItem(UpdateSnippetReplacementAdornments);
+
+        /// <summary>
+        /// Perform a synchronous update, in case multiple background threads are running
+        /// </summary>
+        private void SynchronousUpdate(NormalizedSnapshotSpanCollection newSpans)
+        {
+            lock (updateLock)
+            {
+                WordSpans = newSpans;
+
+                var tempEvent = TagsChanged;
+                if (tempEvent != null)
+                {
+                    tempEvent(this,
+                              new SnapshotSpanEventArgs(new SnapshotSpan(SourceBuffer.CurrentSnapshot, 0,
+                                                                         SourceBuffer.CurrentSnapshot.Length)));
+                }
             }
         }
 
@@ -87,45 +116,12 @@ namespace SnippetDesignerComponents
             }
         }
 
-        /// <summary>
-        /// Perform a synchronous update, in case multiple background threads are running
-        /// </summary>
-        private void SynchronousUpdate(NormalizedSnapshotSpanCollection newSpans)
+        private void ViewLayoutChanged(object sender, TextViewLayoutChangedEventArgs e)
         {
-            lock (updateLock)
+            // If a new snapshot wasn't generated, then skip this layout
+            if (e.NewViewState.EditSnapshot != e.OldViewState.EditSnapshot)
             {
-                WordSpans = newSpans;
-
-                var tempEvent = TagsChanged;
-                if (tempEvent != null)
-                    tempEvent(this,
-                              new SnapshotSpanEventArgs(new SnapshotSpan(SourceBuffer.CurrentSnapshot, 0,
-                                                                         SourceBuffer.CurrentSnapshot.Length)));
-            }
-        }
-
-
-        public IEnumerable<ITagSpan<ClassificationTag>> GetTags(NormalizedSnapshotSpanCollection spans)
-        {
-            // Hold on to a "snapshot" of the word spans, so that we maintain the same
-            // collection throughout
-            NormalizedSnapshotSpanCollection wordSpans = WordSpans;
-
-            if (spans.Count == 0 || WordSpans.Count == 0)
-                yield break;
-
-            // If the requested snapshot isn't the same as the one our words are on, translate our spans
-            // to the expected snapshot
-            if (spans[0].Snapshot != wordSpans[0].Snapshot)
-            {
-                wordSpans = new NormalizedSnapshotSpanCollection(
-                    wordSpans.Select(span => span.TranslateTo(spans[0].Snapshot, SpanTrackingMode.EdgeExclusive)));
-            }
-
-            // Yield all the replacement spans in the file
-            foreach (SnapshotSpan span in NormalizedSnapshotSpanCollection.Overlap(spans, wordSpans))
-            {
-                yield return new TagSpan<ClassificationTag>(span, new ClassificationTag(classificationType));
+                ThreadPool.QueueUserWorkItem(UpdateSnippetReplacementAdornments);
             }
         }
     }

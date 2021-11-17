@@ -5,7 +5,7 @@ using Microsoft.VisualStudio.Utilities;
 
 namespace SnippetDesignerComponents
 {
-    [Export(typeof (EditorFormatDefinition))]
+    [Export(typeof(EditorFormatDefinition))]
     [ClassificationType(ClassificationTypeNames = "snippet-replacement")]
     [Name("snippet-replacement")]
     [UserVisible(true)]

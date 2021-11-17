@@ -1,4 +1,4 @@
-﻿using System.Windows.Forms.Design;
+using System.Windows.Forms.Design;
 
 namespace Microsoft.SnippetDesigner.OptionPages
 {

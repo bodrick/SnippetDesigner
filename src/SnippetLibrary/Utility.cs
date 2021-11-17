@@ -6,12 +6,8 @@ namespace SnippetLibrary
     /// <summary>
     /// Summary description for Util.
     /// </summary>
-    public class Utility
+    public static class Utility
     {
-        private Utility()
-        {
-        }
-
         /// <summary>
         /// Creates the element.
         /// </summary>
@@ -40,17 +36,7 @@ namespace SnippetLibrary
         /// </summary>
         /// <param name="element"></param>
         /// <returns></returns>
-        public static string GetTextFromElement(XmlElement element)
-        {
-            if (element == null)
-            {
-                return string.Empty;
-            }
-            else
-            {
-                return element.InnerText;
-            }
-        }
+        public static string GetTextFromElement(XmlElement element) => element == null ? string.Empty : element.InnerText;
 
         public static XmlNode SetTextInChildElement(XmlElement element, string name, string text, XmlNamespaceManager nsMgr) => SetTextInElement(element, name, text, nsMgr, true);
 
@@ -78,12 +64,7 @@ namespace SnippetLibrary
                 selector = "child";
             }
 
-            var newElement = (XmlElement)element.SelectSingleNode(selector + "::ns1:" + name, nsMgr);
-
-            if (newElement == null)
-            {
-                newElement = (XmlElement)element.AppendChild(element.OwnerDocument.CreateElement(name, nsMgr.LookupNamespace("ns1")));
-            }
+            var newElement = (XmlElement)element.SelectSingleNode(selector + "::ns1:" + name, nsMgr) ?? (XmlElement)element.AppendChild(element.OwnerDocument.CreateElement(name, nsMgr.LookupNamespace("ns1")));
 
             newElement.InnerText = text;
             return element.AppendChild(newElement);

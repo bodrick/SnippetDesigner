@@ -4,32 +4,28 @@ namespace SnippetLibrary
 {
     public class SnippetType
     {
-        private XmlElement element;
+        private XmlElement _element;
 
-        private string value;
-
-        public SnippetType()
-        {
-        }
+        private string _value;
 
         public SnippetType(XmlElement element) => BuildTypeElement(element);
 
-        public SnippetType(string stype) => value = stype;
+        public SnippetType(string stype) => _value = stype;
 
         public string Value
         {
-            get => value;
+            get => _value;
             set
             {
-                this.value = value;
-                element.InnerText = this.value;
+                _value = value;
+                _element.InnerText = _value;
             }
         }
 
         public void BuildTypeElement(XmlElement element)
         {
-            this.element = element;
-            value = Utility.GetTextFromElement(this.element);
+            _element = element;
+            _value = Utility.GetTextFromElement(_element);
         }
     }
 }

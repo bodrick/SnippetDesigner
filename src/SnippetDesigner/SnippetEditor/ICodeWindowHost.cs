@@ -12,14 +12,13 @@ namespace Microsoft.SnippetDesigner
         /// </summary>
         bool ReadOnlyCodeWindow { get; }
 
-
         /// <summary>
         /// The service provider that the code window should use
         /// </summary>
         IServiceProvider ServiceProvider { get; }
 
         /// <summary>
-        /// Set up the custom context menu with a command filter to override 
+        /// Set up the custom context menu with a command filter to override
         /// the deafult vs code window context menu
         /// </summary>
         void SetupContextMenus();

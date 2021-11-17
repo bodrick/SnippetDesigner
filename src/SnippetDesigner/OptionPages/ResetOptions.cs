@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.Runtime.InteropServices;
@@ -17,7 +17,6 @@ namespace Microsoft.SnippetDesigner.OptionPages
     {
         public ResetOptions()
         {
-          
         }
 
         [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -25,11 +24,12 @@ namespace Microsoft.SnippetDesigner.OptionPages
         {
             get
             {
-                ResetOptionsControl control = new ResetOptionsControl();
-                control.Location = new Point(0, 0);
+                var control = new ResetOptionsControl
+                {
+                    Location = new Point(0, 0)
+                };
                 return control;
             }
         }
     }
 }
-

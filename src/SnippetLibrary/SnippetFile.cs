@@ -12,9 +12,9 @@ namespace SnippetLibrary
     {
         public static readonly string SnippetNS = @"http://schemas.microsoft.com/VisualStudio/2005/CodeSnippet";
         public static readonly string SnippetSchemaFormat = RegistryLocations.GetVSInstallDir() + @"..\..\Xml\Schemas\{0}\snippetformat.xsd";
-        private readonly bool validateSnippetFile;
-        private XmlNamespaceManager nsMgr;
-        private XmlSchemaSet schemas;
+        private readonly bool _validateSnippetFile;
+        private XmlNamespaceManager _nsMgr;
+        private XmlSchemaSet _schemas;
 
         public SnippetFile(string fileName)
         {
@@ -35,14 +35,14 @@ namespace SnippetLibrary
         /// <returns>Index position of added snippet</returns>
         public int AppendNewSnippet()
         {
-            var newSnippet = SnippetXmlDoc.CreateElement("CodeSnippet", nsMgr.LookupNamespace("ns1"));
+            var newSnippet = SnippetXmlDoc.CreateElement("CodeSnippet", _nsMgr.LookupNamespace("ns1"));
             newSnippet.SetAttribute("Format", "1.0.0");
-            newSnippet.AppendChild(SnippetXmlDoc.CreateElement("Header", nsMgr.LookupNamespace("ns1")));
-            newSnippet.AppendChild(SnippetXmlDoc.CreateElement("Snippet", nsMgr.LookupNamespace("ns1")));
+            newSnippet.AppendChild(SnippetXmlDoc.CreateElement("Header", _nsMgr.LookupNamespace("ns1")));
+            newSnippet.AppendChild(SnippetXmlDoc.CreateElement("Snippet", _nsMgr.LookupNamespace("ns1")));
 
-            var codeSnippetsNode = SnippetXmlDoc.SelectSingleNode("//ns1:CodeSnippets", nsMgr);
+            var codeSnippetsNode = SnippetXmlDoc.SelectSingleNode("//ns1:CodeSnippets", _nsMgr);
             var newNode = codeSnippetsNode.AppendChild(newSnippet);
-            Snippets.Add(new Snippet(newNode, nsMgr));
+            Snippets.Add(new Snippet(newNode, _nsMgr));
             return Snippets.Count - 1;
         }
 
@@ -57,9 +57,9 @@ namespace SnippetLibrary
             LoadSchema();
             SnippetXmlDoc = new XmlDocument();
 
-            if (schemas.Count > 0)
+            if (_schemas.Count > 0)
             {
-                SnippetXmlDoc.Schemas = schemas;
+                SnippetXmlDoc.Schemas = _schemas;
             }
             SnippetXmlDoc.LoadXml(text);
             LoadFromDoc();
@@ -69,7 +69,7 @@ namespace SnippetLibrary
         {
             SnippetXmlDoc = new XmlDocument
             {
-                Schemas = schemas
+                Schemas = _schemas
             };
             SnippetXmlDoc.LoadXml("<?xml version=\"1.0\" encoding=\"utf-8\" ?>" +
                                   "<CodeSnippets xmlns=\"" + SnippetNS + "\">" +
@@ -77,11 +77,11 @@ namespace SnippetLibrary
                                   + "</CodeSnippets>");
 
             Snippets = new List<Snippet>();
-            nsMgr = new XmlNamespaceManager(SnippetXmlDoc.NameTable);
-            nsMgr.AddNamespace("ns1", SnippetNS);
+            _nsMgr = new XmlNamespaceManager(SnippetXmlDoc.NameTable);
+            _nsMgr.AddNamespace("ns1", SnippetNS);
 
-            var node = SnippetXmlDoc.SelectSingleNode("//ns1:CodeSnippets//ns1:CodeSnippet", nsMgr);
-            Snippets.Add(new Snippet(node, nsMgr));
+            var node = SnippetXmlDoc.SelectSingleNode("//ns1:CodeSnippets//ns1:CodeSnippet", _nsMgr);
+            Snippets.Add(new Snippet(node, _nsMgr));
         }
 
         public void Save() => SnippetXmlDoc.Save(FileName);
@@ -123,7 +123,7 @@ namespace SnippetLibrary
         {
             SnippetXmlDoc = new XmlDocument
             {
-                Schemas = schemas
+                Schemas = _schemas
             };
             SnippetXmlDoc.LoadXml("<?xml version=\"1.0\" encoding=\"utf-8\" ?>" +
                                   "<CodeSnippets xmlns=\"" + SnippetNS + "\">" +
@@ -132,11 +132,11 @@ namespace SnippetLibrary
                                   "</Snippet></CodeSnippet></CodeSnippets>");
 
             Snippets = new List<Snippet>();
-            nsMgr = new XmlNamespaceManager(SnippetXmlDoc.NameTable);
-            nsMgr.AddNamespace("ns1", SnippetNS);
+            _nsMgr = new XmlNamespaceManager(SnippetXmlDoc.NameTable);
+            _nsMgr.AddNamespace("ns1", SnippetNS);
 
-            var node = SnippetXmlDoc.SelectSingleNode("//ns1:CodeSnippets//ns1:CodeSnippet", nsMgr);
-            Snippets.Add(new Snippet(node, nsMgr));
+            var node = SnippetXmlDoc.SelectSingleNode("//ns1:CodeSnippets//ns1:CodeSnippet", _nsMgr);
+            Snippets.Add(new Snippet(node, _nsMgr));
         }
 
         // Read in the xml document and extract relevant data
@@ -148,7 +148,7 @@ namespace SnippetLibrary
             {
                 if (!string.IsNullOrEmpty(FileName))
                 {
-                    //if file name exists use it otherweise use stream if it exists
+                    //if file name exists use it otherwise use stream if it exists
                     SnippetXmlDoc.Load(FileName);
                 }
                 else
@@ -158,7 +158,7 @@ namespace SnippetLibrary
             }
             catch (IOException ioException)
             {
-                //if file doesnt exist or cant be read throw the ioexcpetion
+                //if file doesn't exist or cant be read throw the io exception
                 throw ioException;
             }
             catch (XmlException)
@@ -171,19 +171,19 @@ namespace SnippetLibrary
                 else
                 {
                     //the file is not empty
-                    //we shouldnt be loading this
+                    //we shouldn't be loading this
                     throw new IOException("Not a valid XML Document");
                 }
                 return;
             }
-            //load from the stored XMLdocument
+            //load from the stored XML document
             LoadFromDoc();
         }
 
         private void LoadFromDoc()
         {
-            nsMgr = new XmlNamespaceManager(SnippetXmlDoc.NameTable);
-            nsMgr.AddNamespace("ns1", "http://schemas.microsoft.com/VisualStudio/2005/CodeSnippet");
+            _nsMgr = new XmlNamespaceManager(SnippetXmlDoc.NameTable);
+            _nsMgr.AddNamespace("ns1", "http://schemas.microsoft.com/VisualStudio/2005/CodeSnippet");
 
             // If the document doesn't already have a declaration, add it
             if (SnippetXmlDoc.FirstChild.NodeType != XmlNodeType.XmlDeclaration)
@@ -199,19 +199,19 @@ namespace SnippetLibrary
                 // Since the root element was CodeSnippet, we should
                 // proceed with the assumption that this file only
                 // defines one snippet.
-                Snippets.Add(new Snippet(SnippetXmlDoc.DocumentElement, nsMgr));
+                Snippets.Add(new Snippet(SnippetXmlDoc.DocumentElement, _nsMgr));
                 return;
             }
             else
             {
-                foreach (XmlNode node in SnippetXmlDoc.DocumentElement.SelectNodes("//ns1:CodeSnippet", nsMgr))
+                foreach (XmlNode node in SnippetXmlDoc.DocumentElement.SelectNodes("//ns1:CodeSnippet", _nsMgr))
                 {
-                    Snippets.Add(new Snippet(node, nsMgr));
+                    Snippets.Add(new Snippet(node, _nsMgr));
                 }
             }
-            if (schemas.Count > 0)
+            if (_schemas.Count > 0)
             {
-                SnippetXmlDoc.Schemas = schemas;
+                SnippetXmlDoc.Schemas = _schemas;
                 ValidationEventHandler schemaValidator = SchemaValidationEventHandler;
                 SnippetXmlDoc.Validate(schemaValidator);
             }
@@ -219,13 +219,13 @@ namespace SnippetLibrary
 
         private void LoadSchema()
         {
-            schemas = new XmlSchemaSet();
-            if (validateSnippetFile)
+            _schemas = new XmlSchemaSet();
+            if (_validateSnippetFile)
             {
                 var schemaPath = GetSnippetSchemaPath();
                 if (!string.IsNullOrEmpty(schemaPath))
                 {
-                    schemas.Add(SnippetNS, schemaPath);
+                    _schemas.Add(SnippetNS, schemaPath);
                 }
             }
         }
@@ -237,18 +237,18 @@ namespace SnippetLibrary
                 case XmlSeverityType.Error:
                 {
                     HasXmlErrors = true;
-                    if (validateSnippetFile)
+                    if (_validateSnippetFile)
                     {
-                        MessageBox.Show(string.Format("\nError: {0}", e.Message));
+                        MessageBox.Show($"\nError: {e.Message}");
                     }
                     break;
                 }
                 case XmlSeverityType.Warning:
                 {
                     HasXmlErrors = true;
-                    if (validateSnippetFile)
+                    if (_validateSnippetFile)
                     {
-                        MessageBox.Show(string.Format("\nWarning: {0}", e.Message));
+                        MessageBox.Show($"\nWarning: {e.Message}");
                     }
                     break;
                 }

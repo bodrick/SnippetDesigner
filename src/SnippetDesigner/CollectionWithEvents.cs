@@ -14,25 +14,20 @@ namespace Microsoft.SnippetDesigner
 
     public class CollectionEventArgs<U> : EventArgs
     {
-        public CollectionOperation Operation { get; private set; }
-        public int Index { get; private set; }
-        public U Item { get; private set; }
-
         public CollectionEventArgs(U item, CollectionOperation operation, int index)
         {
             Item = item;
             Index = index;
             Operation = operation;
         }
-    }
 
+        public int Index { get; private set; }
+        public U Item { get; private set; }
+        public CollectionOperation Operation { get; private set; }
+    }
 
     public class CollectionWithEvents<T> : Collection<T>
     {
-
-        
-        public event EventHandler<CollectionEventArgs<T>> CollectionChanged;
-
         public CollectionWithEvents()
         {
         }
@@ -40,6 +35,16 @@ namespace Microsoft.SnippetDesigner
         public CollectionWithEvents(IEnumerable<T> items)
             : base(items.ToList())
         {
+        }
+
+        public event EventHandler<CollectionEventArgs<T>> CollectionChanged;
+
+        public void AddRange(IEnumerable<T> items)
+        {
+            foreach (var item in items)
+            {
+                Add(item);
+            }
         }
 
         protected override void InsertItem(int index, T item)
@@ -62,15 +67,10 @@ namespace Microsoft.SnippetDesigner
 
         private void OnCollectionChanged(T item, CollectionOperation operation, int index)
         {
-            if(CollectionChanged != null)
-                CollectionChanged(this,new CollectionEventArgs<T>(item,operation,index));
-                
-        }
-
-        public void AddRange(IEnumerable<T> items)
-        {
-            foreach(var item in items)
-                Add(item);
+            if (CollectionChanged != null)
+            {
+                CollectionChanged(this, new CollectionEventArgs<T>(item, operation, index));
+            }
         }
     }
 }

@@ -1,37 +1,18 @@
 using System;
 using System.Collections.Specialized;
-using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace Microsoft.SnippetDesigner
 {
     /// <summary>
-    ///    This is a custom attribute that shall be defined for all those properties of any class whose values need to be set based on 
-    /// command line options. 
+    ///    This is a custom attribute that shall be defined for all those properties of any class whose values need to be set based on
+    /// command line options.
     /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
     public sealed class AppCmdLineArgumentAttribute : Attribute
     {
-        private readonly string name = "";
         private readonly string description = "";
-
-        /// <summary>
-        ///  Holds the name of the command line option that is associated with
-        /// this property.
-        /// </summary>
-        public string Name
-        {
-            get { return name; }
-        }
-
-        /// <summary>
-        ///  Holds the description of the property to which this is 
-        /// associated.
-        /// </summary>
-        public string Description
-        {
-            get { return description; }
-        }
+        private readonly string name = "";
 
         /// <summary>Attribute constructor.</summary>
         public AppCmdLineArgumentAttribute(string optionName, string descrip)
@@ -39,11 +20,23 @@ namespace Microsoft.SnippetDesigner
             name = optionName;
             description = descrip;
         }
+
+        /// <summary>
+        ///  Holds the description of the property to which this is
+        /// associated.
+        /// </summary>
+        public string Description => description;
+
+        /// <summary>
+        ///  Holds the name of the command line option that is associated with
+        /// this property.
+        /// </summary>
+        public string Name => name;
     }
 
     /// <summary>
     ///   A class that encapsulates parsing of command line options and provides
-    /// support to update any class object that maps its properties to any one of 
+    /// support to update any class object that maps its properties to any one of
     /// the command line option using custom attribute AppCmdLineArgumentAttribute .
     /// </summary>
     public class AppCmdLineArguments
@@ -52,16 +45,16 @@ namespace Microsoft.SnippetDesigner
 
         /// <summary>
         ///    Regular expressions to split each command line arguments into its parts.
-        ///     ^-{1,2} this defines any argument which starts with "-" or "--" 
-        ///     |^/| this defines any argument that starts with "/" 
-        ///     |=|:| this defines the split delimiter could be = or : 
+        ///     ^-{1,2} this defines any argument which starts with "-" or "--"
+        ///     |^/| this defines any argument that starts with "/"
+        ///     |=|:| this defines the split delimiter could be = or :
         ///   Thus the above regular expression could be used to split the following arguments samples into
         ///   key value pairs
-        /// 
-        ///     /plugin:"Name of the plugin" 
+        ///
+        ///     /plugin:"Name of the plugin"
         ///     /trace=true
         ///     /debug:false
-        /// 
+        ///
         /// </summary>
         private readonly Regex splitter = new Regex(@"^-{1,2}|^/|=|:", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -81,20 +74,22 @@ namespace Microsoft.SnippetDesigner
             string param = null;
             string[] argument_parts;
 
-            foreach (string str in args)
+            foreach (var str in args)
             {
                 argument_parts = splitter.Split(str, 3);
 
                 switch (argument_parts.Length)
                 {
-                        //. The argument has 3 parts like in example: /plugin:"Microsoft ASP.NET Analyzer"
-                        //. In the above example argument_parts[1] will have plugin 
-                        //. and argument_parts[2] will have the actual string "Microsoft ASP.NET Analyzer"
+                    //. The argument has 3 parts like in example: /plugin:"Microsoft ASP.NET Analyzer"
+                    //. In the above example argument_parts[1] will have plugin
+                    //. and argument_parts[2] will have the actual string "Microsoft ASP.NET Analyzer"
                     case 3:
                         if (param != null)
                         {
                             if (!Params.ContainsKey(param))
+                            {
                                 Params.Add(param, "true");
+                            }
                         }
                         param = argument_parts[1];
 
@@ -106,20 +101,22 @@ namespace Microsoft.SnippetDesigner
                         param = null;
                         break;
 
-                        //. The argument has only 2 parts like /trace
-                        //. argument_parts[1] will be set to trace 
+                    //. The argument has only 2 parts like /trace
+                    //. argument_parts[1] will be set to trace
                     case 2:
                         if (param != null)
                         {
                             if (!Params.ContainsKey(param))
+                            {
                                 Params.Add(param, "true");
+                            }
                         }
                         param = argument_parts[1];
                         break;
 
-                        //. The argument has only one part esp in case of /trace true
-                        //. In the above example argument_parts[0] would be true so the previous option's value is set to true
-                        //. 
+                    //. The argument has only one part esp in case of /trace true
+                    //. In the above example argument_parts[0] would be true so the previous option's value is set to true
+                    //.
                     case 1:
                         if (param != null)
                         {
@@ -135,13 +132,10 @@ namespace Microsoft.SnippetDesigner
             if (param != null)
             {
                 if (!Params.ContainsKey(param))
+                {
                     Params.Add(param, "true");
+                }
             }
-        }
-
-        private void Trim(ref string Value)
-        {
-            Value = trimQuotes.Replace(Value, "$1");
         }
 
         /// <summary>
@@ -149,10 +143,7 @@ namespace Microsoft.SnippetDesigner
         /// </summary>
         /// <param name="parameter">Command line option name</param>
         /// <returns>return its value</returns>
-        public string this[string parameter]
-        {
-            get { return Params[parameter]; }
-        }
+        public string this[string parameter] => Params[parameter];
 
         /// <summary>
         ///    Update the property value on the SnippetFile object passed whose AppCmdLineArgumentAttribute
@@ -162,30 +153,32 @@ namespace Microsoft.SnippetDesigner
         public void UpdateParams(object theApp)
         {
             if (theApp == null)
+            {
                 return;
+            }
 
-            PropertyInfo[] properties = theApp.GetType().GetProperties();
+            var properties = theApp.GetType().GetProperties();
 
-            for (int i = 0; i < properties.Length; i++)
+            for (var i = 0; i < properties.Length; i++)
             {
                 foreach (Attribute attribute in properties[i].GetCustomAttributes(false))
                 {
                     if (attribute is AppCmdLineArgumentAttribute)
                     {
-                        AppCmdLineArgumentAttribute argAttrib = attribute as AppCmdLineArgumentAttribute;
+                        var argAttrib = attribute as AppCmdLineArgumentAttribute;
                         if (Params[argAttrib.Name] != null)
                         {
-                            object[] propertyValue = new object[1];
+                            var propertyValue = new object[1];
 
-                            if (properties[i].PropertyType == typeof (string))
+                            if (properties[i].PropertyType == typeof(string))
                             {
                                 propertyValue[0] = Params[argAttrib.Name];
                             }
-                            else if (properties[i].PropertyType == typeof (int))
+                            else if (properties[i].PropertyType == typeof(int))
                             {
                                 propertyValue[0] = int.Parse(Params[argAttrib.Name]);
                             }
-                            else if (properties[i].PropertyType == typeof (bool))
+                            else if (properties[i].PropertyType == typeof(bool))
                             {
                                 propertyValue[0] = bool.Parse(Params[argAttrib.Name]);
                             }
@@ -195,5 +188,7 @@ namespace Microsoft.SnippetDesigner
                 }
             }
         }
-    } ;
+
+        private void Trim(ref string Value) => Value = trimQuotes.Replace(Value, "$1");
+    };
 }

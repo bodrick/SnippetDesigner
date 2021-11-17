@@ -6,7 +6,7 @@ namespace SnippetLibrary
     [ComVisible(true)]
     public class AlternativeShortcut
     {
-        private XmlElement element;
+        private XmlElement _element;
 
         public AlternativeShortcut(XmlElement element, XmlNamespaceManager nsMgr) => BuildShortcut(element, nsMgr);
 
@@ -25,12 +25,12 @@ namespace SnippetLibrary
 
         public void BuildShortcut(XmlElement element, XmlNamespaceManager nsMgr)
         {
-            this.element = element;
-            Name = this.element.InnerText;
+            _element = element;
+            Name = _element.InnerText;
 
-            if (this.element.HasAttribute("Value"))
+            if (_element.HasAttribute("Value"))
             {
-                Value = this.element.GetAttribute("Value");
+                Value = _element.GetAttribute("Value");
             }
         }
 

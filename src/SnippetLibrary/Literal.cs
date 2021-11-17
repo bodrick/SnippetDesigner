@@ -6,53 +6,53 @@ namespace SnippetLibrary
     [ComVisible(true)]
     public class Literal
     {
-        private string defaultValue;
-        private bool editable;
-        private XmlElement element;
-        private string function;
-        private string id;
-        private string toolTip;
-        private string type;
+        private string _defaultValue;
+        private bool _editable;
+        private XmlElement _element;
+        private string _function;
+        private string _id;
+        private string _toolTip;
+        private string _type;
 
         #region Properties
 
         public string DefaultValue
         {
-            get => defaultValue;
+            get => _defaultValue;
             set
             {
-                defaultValue = value;
-                Utility.SetTextInDescendantElement(element, "Default", defaultValue, null);
+                _defaultValue = value;
+                Utility.SetTextInDescendantElement(_element, "Default", _defaultValue, null);
             }
         }
 
         public bool Editable
         {
-            get => editable;
+            get => _editable;
             set
             {
-                editable = value;
-                element.SetAttribute("Editable", editable.ToString());
+                _editable = value;
+                _element.SetAttribute("Editable", _editable.ToString());
             }
         }
 
         public string Function
         {
-            get => function;
+            get => _function;
             set
             {
-                function = value;
-                Utility.SetTextInDescendantElement(element, "Function", function, null);
+                _function = value;
+                Utility.SetTextInDescendantElement(_element, "Function", _function, null);
             }
         }
 
         public string ID
         {
-            get => id;
+            get => _id;
             set
             {
-                id = value;
-                Utility.SetTextInDescendantElement(element, "ID", id, null);
+                _id = value;
+                Utility.SetTextInDescendantElement(_element, "ID", _id, null);
             }
         }
 
@@ -60,59 +60,52 @@ namespace SnippetLibrary
 
         public string ToolTip
         {
-            get => toolTip;
+            get => _toolTip;
             set
             {
-                toolTip = value;
-                Utility.SetTextInDescendantElement(element, "ToolTip", toolTip, null);
+                _toolTip = value;
+                Utility.SetTextInDescendantElement(_element, "ToolTip", _toolTip, null);
             }
         }
 
         public string Type
         {
-            get => type;
+            get => _type;
             set
             {
-                type = value;
-                Utility.SetTextInDescendantElement(element, "Type", type, null);
+                _type = value;
+                Utility.SetTextInDescendantElement(_element, "Type", _type, null);
             }
         }
 
         #endregion Properties
 
-        public Literal(XmlElement element, XmlNamespaceManager nsMgr, bool Object) => BuildLiteral(element, nsMgr, Object);
+        public Literal(XmlElement element, XmlNamespaceManager nsMgr, bool @object) => BuildLiteral(element, nsMgr, @object);
 
         public Literal(string id, string tip, string defaults, string function, bool isObj, bool isEdit, string type) => BuildLiteral(id, tip, defaults, function, isObj, isEdit, type);
 
         public void BuildLiteral(XmlElement element, XmlNamespaceManager nsMgr, bool @object)
         {
-            this.element = element;
+            _element = element;
             Object = @object;
-            id = Utility.GetTextFromElement((XmlElement)this.element.SelectSingleNode("descendant::ns1:ID", nsMgr));
-            toolTip = Utility.GetTextFromElement((XmlElement)this.element.SelectSingleNode("descendant::ns1:ToolTip", nsMgr));
-            function = Utility.GetTextFromElement((XmlElement)this.element.SelectSingleNode("descendant::ns1:Function", nsMgr));
-            defaultValue = Utility.GetTextFromElement((XmlElement)this.element.SelectSingleNode("descendant::ns1:Default", nsMgr));
-            type = Utility.GetTextFromElement((XmlElement)this.element.SelectSingleNode("descendant::ns1:Type", nsMgr));
-            var boolStr = this.element.GetAttribute("Editable");
-            if (boolStr != string.Empty)
-            {
-                editable = bool.Parse(boolStr);
-            }
-            else
-            {
-                editable = true;
-            }
+            _id = Utility.GetTextFromElement((XmlElement)_element.SelectSingleNode("descendant::ns1:ID", nsMgr));
+            _toolTip = Utility.GetTextFromElement((XmlElement)_element.SelectSingleNode("descendant::ns1:ToolTip", nsMgr));
+            _function = Utility.GetTextFromElement((XmlElement)_element.SelectSingleNode("descendant::ns1:Function", nsMgr));
+            _defaultValue = Utility.GetTextFromElement((XmlElement)_element.SelectSingleNode("descendant::ns1:Default", nsMgr));
+            _type = Utility.GetTextFromElement((XmlElement)_element.SelectSingleNode("descendant::ns1:Type", nsMgr));
+            var boolStr = _element.GetAttribute("Editable");
+            _editable = boolStr == string.Empty || bool.Parse(boolStr);
         }
 
         public void BuildLiteral(string id, string tip, string defaults, string function, bool isObj, bool isEdit, string type)
         {
             Object = isObj;
-            this.id = id;
-            toolTip = tip;
-            this.function = function;
-            defaultValue = defaults;
-            editable = isEdit;
-            this.type = type;
+            _id = id;
+            _toolTip = tip;
+            _function = function;
+            _defaultValue = defaults;
+            _editable = isEdit;
+            _type = type;
         }
     }
 }

@@ -15,26 +15,26 @@ namespace Microsoft.SnippetDesigner
         WM_SETFOCUS = 0x0007,
         WM_KILLFOCUS = 0x0008;
 
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        internal static extern bool IsChild(IntPtr hwndParent, IntPtr hwndChildTest);
+        // We need this Win32 function to find out if the shell has the focus.
+        [DllImport("user32.Dll")]
+        internal static extern int GetActiveWindow();
 
         [DllImport("user32.dll", ExactSpelling = true, CharSet = CharSet.Auto)]
         internal static extern IntPtr GetFocus();
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        internal static extern bool IsChild(IntPtr hwndParent, IntPtr hwndChildTest);
 
         [DllImport("user32.dll", ExactSpelling = true, CharSet = CharSet.Auto)]
         internal static extern IntPtr SetFocus(IntPtr hWnd);
 
         [DllImport("user32.dll", ExactSpelling = true, CharSet = CharSet.Auto)]
-        internal static extern bool SetWindowPos(IntPtr hwnd, IntPtr hwndBefore, int x, int y, int cx, int cy, int flags);
-
-        [DllImport("user32.dll", ExactSpelling = true, CharSet = CharSet.Auto)]
         internal static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
 
         [DllImport("user32.dll", ExactSpelling = true, CharSet = CharSet.Auto)]
-        internal static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        internal static extern bool SetWindowPos(IntPtr hwnd, IntPtr hwndBefore, int x, int y, int cx, int cy, int flags);
 
-        // We need this Win32 function to find out if the shell has the focus.
-        [DllImport("user32.Dll")]
-        internal static extern int GetActiveWindow();
+        [DllImport("user32.dll", ExactSpelling = true, CharSet = CharSet.Auto)]
+        internal static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
     }
 }

@@ -11,19 +11,6 @@ namespace Microsoft.SnippetDesigner
         //member variables
         private readonly Dictionary<string, string> exportNameToSchemaName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-
-        /// <summary>
-        /// Gets the code.
-        /// </summary>
-        /// <value>The code.</value>
-        internal string Code { get; private set; }
-
-        /// <summary>
-        /// Gets the language.
-        /// </summary>
-        /// <value>The language.</value>
-        internal string Language { get; private set; }
-
         internal ExportToSnippetData(string code, string language)
         {
             exportNameToSchemaName[StringConstants.ExportNameCPP] = StringConstants.SchemaNameCPP;
@@ -44,8 +31,20 @@ namespace Microsoft.SnippetDesigner
             else
             {
                 //pass empty string if we dont know the language passed in
-                Language = String.Empty;
+                Language = string.Empty;
             }
         }
+
+        /// <summary>
+        /// Gets the code.
+        /// </summary>
+        /// <value>The code.</value>
+        internal string Code { get; private set; }
+
+        /// <summary>
+        /// Gets the language.
+        /// </summary>
+        /// <value>The language.</value>
+        internal string Language { get; private set; }
     }
 }

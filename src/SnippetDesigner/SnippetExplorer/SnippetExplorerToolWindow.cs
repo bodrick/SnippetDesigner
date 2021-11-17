@@ -1,4 +1,4 @@
-﻿// Copyright (C) Microsoft Corporation. All rights reserved.
+// Copyright (C) Microsoft Corporation. All rights reserved.
 
 using System;
 using System.Runtime.InteropServices;
@@ -19,14 +19,11 @@ namespace Microsoft.SnippetDesigner.SnippetExplorer
     [ComVisible(true)]
     public class SnippetExplorerToolWindow : ToolWindowPane
     {
-        // This is the user snippetExplorerForm hosted by the tool window; it is exposed to the base class 
+        // This is the user snippetExplorerForm hosted by the tool window; it is exposed to the base class
         // using the Window property. Note that, even if this class implements IDispose, we are
-        // not calling Dispose on this object. This is because ToolWindowPane calls Dispose on 
+        // not calling Dispose on this object. This is because ToolWindowPane calls Dispose on
         // the object returned by the Window property.
         private SnippetExplorerForm snippetExplorerForm;
-
-
-
 
         /// <summary>
         /// Standard constructor for the tool window.
@@ -36,26 +33,24 @@ namespace Microsoft.SnippetDesigner.SnippetExplorer
             base(null)
         {
             // Set the window title reading it from the resources.
-            this.Caption = Resources.ToolWindowTitle;
+            Caption = Resources.ToolWindowTitle;
             // Set the image that will appear on the tab of the window frame
             // when docked with an other window
             // The resource ID correspond to the one defined in the resx file
             // while the Index is the offset in the bitmap strip. Each image in
             // the strip being 16x16.
-            this.BitmapResourceID = 301;
-            this.BitmapIndex = 2;
+            BitmapResourceID = 301;
+            BitmapIndex = 2;
         }
-
 
         /// <summary>
         /// This property returns the handle to the user snippetExplorerForm that should
         /// be hosted in the Tool Window.
         /// </summary>
-        override public IWin32Window Window
+        public override IWin32Window Window
         {
             get
             {
-
                 using (DpiAwareness.EnterDpiScope(DpiAwarenessContext.SystemAware))
                 {
                     if (snippetExplorerForm == null)

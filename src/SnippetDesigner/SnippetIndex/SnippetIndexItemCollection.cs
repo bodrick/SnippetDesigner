@@ -7,31 +7,19 @@ namespace Microsoft.ShareAndCollaborate.ContentTypes
     [XmlRoot]
     public class SnippetIndexItemCollection
     {
-        private List<SnippetIndexItem> snippetItemCollection = new List<SnippetIndexItem>();
-
-        [XmlElement("SnippetIndexItems")]
-        public List<SnippetIndexItem> SnippetIndexItems
-        {
-            get { return snippetItemCollection; }
-        }
+        private readonly List<SnippetIndexItem> snippetItemCollection = new List<SnippetIndexItem>();
 
         public SnippetIndexItemCollection()
         {
         }
 
-        public SnippetIndexItemCollection(SnippetIndexItem[] items)
-        {
-            snippetItemCollection = new List<SnippetIndexItem>(items);
-        }
+        public SnippetIndexItemCollection(SnippetIndexItem[] items) => snippetItemCollection = new List<SnippetIndexItem>(items);
 
-        public void Clear()
-        {
-            snippetItemCollection.Clear();
-        }
+        [XmlElement("SnippetIndexItems")]
+        public List<SnippetIndexItem> SnippetIndexItems => snippetItemCollection;
 
-        public void Add(SnippetIndexItem item)
-        {
-            snippetItemCollection.Add(item);
-        }
+        public void Add(SnippetIndexItem item) => snippetItemCollection.Add(item);
+
+        public void Clear() => snippetItemCollection.Clear();
     }
 }

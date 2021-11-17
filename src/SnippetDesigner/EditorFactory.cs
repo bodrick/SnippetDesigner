@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -16,11 +16,9 @@ namespace Microsoft.SnippetDesigner
     [Guid(GuidList.editorFactoryString)]
     public class EditorFactory : IVsEditorFactory, IDisposable
     {
-        private ServiceProvider vsServiceProvider;
-        private bool disposed;
-
         private readonly SnippetDesignerPackage editorPackage;
-
+        private bool disposed;
+        private ServiceProvider vsServiceProvider;
 
         public EditorFactory(SnippetDesignerPackage package)
         {
@@ -30,62 +28,7 @@ namespace Microsoft.SnippetDesigner
 
         #region IVsEditorFactory Members
 
-        public int SetSite(IServiceProvider psp)
-        {
-            vsServiceProvider = new ServiceProvider(psp, false);
-            return VSConstants.S_OK;
-        }
-
-        public object GetService(Type serviceType)
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            return vsServiceProvider.GetService(serviceType);
-        }
-
-        // This method is called by the Environment (inside IVsUIShellOpenDocument::
-        // OpenStandardEditor and OpenSpecificEditor) to map a LOGICAL view to a 
-        // PHYSICAL view. A LOGICAL view identifies the purpose of the view that is
-        // desired (e.g. a view appropriate for Debugging [LOGVIEWID_Debugging], or a 
-        // view appropriate for text view manipulation as by navigating to a find
-        // result [LOGVIEWID_TextView]). A PHYSICAL view identifies an actual type 
-        // of view implementation that an IVsEditorFactory can create. 
-        //
-        // NOTE: Physical views are identified by a string of your choice with the 
-        // one constraint that the default/primary physical view for an codeWindowHost  
-        // *MUST* use a NULL string as its physical view name (*pbstrPhysicalView = NULL).
-        //
-        // NOTE: It is essential that the implementation of MapLogicalView properly
-        // validates that the LogicalView desired is actually supported by the codeWindowHost.
-        // If an unsupported LogicalView is requested then E_NOTIMPL must be returned.
-        //
-        // NOTE: The special Logical Views supported by an Editor Factory must also 
-        // be registered in the local registry hive. LOGVIEWID_Primary is implicitly 
-        // supported by all code window types and does not need to be registered.
-        // For example, an code window that supports a ViewCode/ViewDesigner scenario
-        // might register something like the following:
-        //      HKLM\Software\Microsoft\VisualStudio\8.0\Editors\
-        //          {...guidEditor...}\
-        //              LogicalViews\
-        //                  {...LOGVIEWID_TextView...} = s ''
-        //                  {...LOGVIEWID_Code...} = s ''
-        //                  {...LOGVIEWID_Debugging...} = s ''
-        //                  {...LOGVIEWID_Designer...} = s 'Form'
-        //
-        public int MapLogicalView(ref Guid rguidLogicalView, out string pbstrPhysicalView)
-        {
-            pbstrPhysicalView = null; // initialize out parameter
-
-            // we support only a single physical view
-            if (VSConstants.LOGVIEWID_Primary == rguidLogicalView)
-                return VSConstants.S_OK; // primary view uses NULL as pbstrPhysicalView
-            else
-                return VSConstants.E_NOTIMPL; // you must return E_NOTIMPL for any unrecognized rguidLogicalView values
-        }
-
-        public int Close()
-        {
-            return VSConstants.S_OK;
-        }
+        public int Close() => VSConstants.S_OK;
 
         /// <summary>
         /// Create an instance of the codeWindowHost
@@ -136,67 +79,76 @@ namespace Microsoft.SnippetDesigner
             }
 
             // Create the Document (codeWindowHost)
-            SnippetEditor snipEditor = new SnippetEditor(editorPackage);
+            var snipEditor = new SnippetEditor(editorPackage);
             ppunkDocView = Marshal.GetIUnknownForObject(snipEditor);
             ppunkDocData = Marshal.GetIUnknownForObject(snipEditor);
-            pbstrEditorCaption = String.Empty;
+            pbstrEditorCaption = string.Empty;
 
             return VSConstants.S_OK;
         }
 
-        #endregion
+        public object GetService(Type serviceType)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            return vsServiceProvider.GetService(serviceType);
+        }
+
+        // This method is called by the Environment (inside IVsUIShellOpenDocument::
+        // OpenStandardEditor and OpenSpecificEditor) to map a LOGICAL view to a
+        // PHYSICAL view. A LOGICAL view identifies the purpose of the view that is
+        // desired (e.g. a view appropriate for Debugging [LOGVIEWID_Debugging], or a
+        // view appropriate for text view manipulation as by navigating to a find
+        // result [LOGVIEWID_TextView]). A PHYSICAL view identifies an actual type
+        // of view implementation that an IVsEditorFactory can create.
+        //
+        // NOTE: Physical views are identified by a string of your choice with the
+        // one constraint that the default/primary physical view for an codeWindowHost
+        // *MUST* use a NULL string as its physical view name (*pbstrPhysicalView = NULL).
+        //
+        // NOTE: It is essential that the implementation of MapLogicalView properly
+        // validates that the LogicalView desired is actually supported by the codeWindowHost.
+        // If an unsupported LogicalView is requested then E_NOTIMPL must be returned.
+        //
+        // NOTE: The special Logical Views supported by an Editor Factory must also
+        // be registered in the local registry hive. LOGVIEWID_Primary is implicitly
+        // supported by all code window types and does not need to be registered.
+        // For example, an code window that supports a ViewCode/ViewDesigner scenario
+        // might register something like the following:
+        //      HKLM\Software\Microsoft\VisualStudio\8.0\Editors\
+        //          {...guidEditor...}\
+        //              LogicalViews\
+        //                  {...LOGVIEWID_TextView...} = s ''
+        //                  {...LOGVIEWID_Code...} = s ''
+        //                  {...LOGVIEWID_Debugging...} = s ''
+        //                  {...LOGVIEWID_Designer...} = s 'Form'
+        //
+        public int MapLogicalView(ref Guid rguidLogicalView, out string pbstrPhysicalView)
+        {
+            pbstrPhysicalView = null; // initialize out parameter
+
+            // we support only a single physical view
+            if (VSConstants.LOGVIEWID_Primary == rguidLogicalView)
+            {
+                return VSConstants.S_OK; // primary view uses NULL as pbstrPhysicalView
+            }
+            else
+            {
+                return VSConstants.E_NOTIMPL; // you must return E_NOTIMPL for any unrecognized rguidLogicalView values
+            }
+        }
+
+        public int SetSite(IServiceProvider psp)
+        {
+            vsServiceProvider = new ServiceProvider(psp, false);
+            return VSConstants.S_OK;
+        }
+
+        #endregion IVsEditorFactory Members
 
         #region IDisposable
 
-        // Implement IDisposable.
-        // Do not make this method virtual.
-        // A derived class should not be able to override this method.
-        public void Dispose()
-        {
-            Dispose(true);
-            // This object will be cleaned up by the Dispose method.
-            // Therefore, you should call GC.SupressFinalize to
-            // take this object off the finalization queue 
-            // and prevent finalization code for this object
-            // from executing a second time.
-            GC.SuppressFinalize(this);
-        }
-
-        // Dispose(bool disposing) executes in two distinct scenarios.
-        // If disposing equals true, the method has been called directly
-        // or indirectly by a user's code. Managed and unmanaged resources
-        // can be disposed.
-        // If disposing equals false, the method has been called by the 
-        // runtime from inside the finalizer and you should not reference 
-        // other objects. Only unmanaged resources can be disposed.
-        private void Dispose(bool disposing)
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            // Check to see if Dispose has already been called.
-            if (!disposed)
-            {
-                // If disposing equals true, dispose all managed 
-                // and unmanaged resources.
-                if (disposing)
-                {
-                    // Dispose managed resources.
-                }
-
-                // Call the appropriate methods to clean up 
-                // unmanaged resources here.
-                // If disposing is false, 
-                // only the following code is executed.
-                if (vsServiceProvider != null)
-                {
-                    vsServiceProvider.Dispose();
-                }
-            }
-            disposed = true;
-        }
-
-
         // Use C# destructor syntax for finalization code.
-        // This destructor will run only if the Dispose method 
+        // This destructor will run only if the Dispose method
         // does not get called.
         // It gives your base class the opportunity to finalize.
         // Do not provide destructors in types derived from this class.
@@ -208,6 +160,52 @@ namespace Microsoft.SnippetDesigner
             Dispose(false);
         }
 
-        #endregion
+        // Implement IDisposable.
+        // Do not make this method virtual.
+        // A derived class should not be able to override this method.
+        public void Dispose()
+        {
+            Dispose(true);
+            // This object will be cleaned up by the Dispose method.
+            // Therefore, you should call GC.SupressFinalize to
+            // take this object off the finalization queue
+            // and prevent finalization code for this object
+            // from executing a second time.
+            GC.SuppressFinalize(this);
+        }
+
+        // Dispose(bool disposing) executes in two distinct scenarios.
+        // If disposing equals true, the method has been called directly
+        // or indirectly by a user's code. Managed and unmanaged resources
+        // can be disposed.
+        // If disposing equals false, the method has been called by the
+        // runtime from inside the finalizer and you should not reference
+        // other objects. Only unmanaged resources can be disposed.
+        private void Dispose(bool disposing)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            // Check to see if Dispose has already been called.
+            if (!disposed)
+            {
+                // If disposing equals true, dispose all managed
+                // and unmanaged resources.
+                if (disposing)
+                {
+                    // Dispose managed resources.
+                }
+
+                // Call the appropriate methods to clean up
+                // unmanaged resources here.
+                // If disposing is false,
+                // only the following code is executed.
+                if (vsServiceProvider != null)
+                {
+                    vsServiceProvider.Dispose();
+                }
+            }
+            disposed = true;
+        }
+
+        #endregion IDisposable
     }
 }

@@ -6,8 +6,8 @@ namespace SnippetDesignerComponents
 {
     internal static class ClassificationType
     {
-        [Export(typeof (ClassificationTypeDefinition))] 
-        [Name("snippet-replacement")] 
-        private static ClassificationTypeDefinition SnippetReplacementClassificationType;
+        [Export(typeof(ClassificationTypeDefinition))]
+        [Name("snippet-replacement")]
+        private static readonly ClassificationTypeDefinition SnippetReplacementClassificationType;
     }
 }

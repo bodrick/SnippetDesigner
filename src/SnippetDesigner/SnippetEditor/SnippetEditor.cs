@@ -35,86 +35,44 @@ namespace Microsoft.SnippetDesigner
         IPersistFileFormat,
         IVsFileChangeEvents,
         IVsDocDataFileChangeControl,
-        IVsFileBackup //to support backup of files. Visual Studio File Recovery 
+        IVsFileBackup //to support backup of files. Visual Studio File Recovery
     {
-        private readonly SnippetDesignerPackage snippetDesignerPackage;
-        private IVsTextView activeTextView;
-
-        private SelectionContainer selContainer;
-        private ITrackSelection trackSel;
-
-
         // this is the snippet format - a codeWindowHost can support multiple formats which would have
         // different values however we only supports one
         private const uint snippetFormat = 0;
 
-        //the current file name
-        private string fileName = string.Empty;
+        private readonly SnippetDesignerPackage snippetDesignerPackage;
+        private IVsTextView activeTextView;
 
-        //the name this file previous had.  This is needed for the manual rename in the running doc table
-        private string previousFileName = string.Empty;
-
-        private bool isDirty;
-        private IVsFileChangeEx vsFileChangeEx;
         private bool backupObsolete = true;
-        private bool fileChangedTimerSet;
-        private Timer reloadTimer = new Timer();
 
         // Counter of the file system changes to ignore.
         private int changesToIgnore;
 
+        private bool fileChangedTimerSet;
+
+        //the current file name
+        private string fileName = string.Empty;
+
+        private bool isDirty;
+        private bool isFileNew;
+        private bool loadDone;
+
+        //the name this file previous had.  This is needed for the manual rename in the running doc table
+        private string previousFileName = string.Empty;
+
+        private Timer reloadTimer = new Timer();
+        private SelectionContainer selContainer;
+        private ITrackSelection trackSel;
+
         // Cookie for the subscription to the file system notification events.
         private uint vsFileChangeCookie;
 
-        private bool isFileNew; //this flag is used to see if this file is new or a previously saved file
+        private IVsFileChangeEx vsFileChangeEx;
+        //this flag is used to see if this file is new or a previously saved file
 
-        private bool loadDone; //set to true when whole laoding process is done
+        //set to true when whole laoding process is done
         //this is needed so we know when to start moinitroing text changes
-
-        /// <summary>
-        /// Service provider for codeiwndow to se
-        /// </summary>
-        public IOleServiceProvider ServiceProvider { get; private set; }
-
-        /// <summary>
-        /// Part of ICOdeWindowHost interface
-        /// let the code window know we dont want it to be read only
-        /// </summary>
-        public bool ReadOnlyCodeWindow
-        {
-            get { return false; }
-        }
-
-        /// <summary>
-        /// Return the object which keeps track of what the currently slected item is
-        /// </summary>
-        private ITrackSelection TrackSelection
-        {
-            get
-            {
-                ThreadHelper.ThrowIfNotOnUIThread();
-                if (trackSel == null)
-                {
-                    //get the trackselection service and return its interface
-                    trackSel = (ITrackSelection) GetVsService(typeof (ITrackSelection));
-                }
-                return trackSel;
-            }
-        }
-
-        /// <summary>
-        /// Get the frame that contains ou codeWindowHost
-        /// </summary>
-        public IVsWindowFrame EditorFrame
-        {
-            get
-            {
-                ThreadHelper.ThrowIfNotOnUIThread();
-                //get service on the window frame for this codeWindowHost
-                return GetVsService(typeof (SVsWindowFrame)) as IVsWindowFrame;
-            }
-        }
-
 
         /// <summary>
         /// Initialize the snippet codeWindowHost
@@ -139,39 +97,46 @@ namespace Microsoft.SnippetDesigner
             SetPropertyGridColors();
         }
 
-
-        public void SetPropertyGridColors()
+        /// <summary>
+        /// Get the frame that contains ou codeWindowHost
+        /// </summary>
+        public IVsWindowFrame EditorFrame
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            IVsUIShell5 shell = (IVsUIShell5)GetVsService(typeof(SVsUIShell));
-            var searchBoxBackgroundColorKey = VsColors.GetThemedGDIColor(shell, EnvironmentColors.SearchBoxBackgroundColorKey);
-            var backgroundColorLighter = VsColors.GetThemedGDIColor(shell, EnvironmentColors.BrandedUIBackgroundColorKey);
-            var backgroundColorDarker = VsColors.GetThemedGDIColor(shell, EnvironmentColors.ToolWindowBackgroundColorKey);
-            var foregroundColor = VsColors.GetThemedGDIColor(shell, EnvironmentColors.ToolWindowTextColorKey);
-
-            this.codeReplacementsSplitter.BackColor = backgroundColorDarker;
-            this.languageLabel.BackColor = backgroundColorLighter;
-            this.languageLabel.ForeColor = foregroundColor;
-            this.replacementLabel.BackColor = backgroundColorLighter;
-            this.replacementLabel.ForeColor = foregroundColor;
-            this.replacementTable.CellBorderStyle = TableLayoutPanelCellBorderStyle.None;
-            this.shortcutLabel.BackColor = backgroundColorLighter;
-            this.shortcutLabel.ForeColor = foregroundColor;
-            this.shortcutTextBox.BackColor = searchBoxBackgroundColorKey;
-            this.shortcutTextBox.ForeColor = foregroundColor;
-            this.snippetCodeWindow.BackColor = backgroundColorDarker;
-            this.snippetCodeWindow.ForeColor = foregroundColor;
-            this.snippetsLabel.BackColor = backgroundColorLighter;
-            this.snippetsLabel.ForeColor = foregroundColor;
-            this.toolStripLanguageBox.BackColor = searchBoxBackgroundColorKey;
-            this.toolStripLanguageBox.ForeColor = foregroundColor;
-            this.toolStripSnippetTitles.BackColor = searchBoxBackgroundColorKey;
-            this.toolStripSnippetTitles.ForeColor = foregroundColor;
-            this.topCommandBar.BackColor = backgroundColorLighter;
-            this.topCommandBar.ForeColor = foregroundColor;
+            get
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                //get service on the window frame for this codeWindowHost
+                return GetVsService(typeof(SVsWindowFrame)) as IVsWindowFrame;
+            }
         }
 
+        /// <summary>
+        /// Part of ICOdeWindowHost interface
+        /// let the code window know we dont want it to be read only
+        /// </summary>
+        public bool ReadOnlyCodeWindow => false;
 
+        /// <summary>
+        /// Service provider for codeiwndow to se
+        /// </summary>
+        public IOleServiceProvider ServiceProvider { get; private set; }
+
+        /// <summary>
+        /// Return the object which keeps track of what the currently slected item is
+        /// </summary>
+        private ITrackSelection TrackSelection
+        {
+            get
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                if (trackSel == null)
+                {
+                    //get the trackselection service and return its interface
+                    trackSel = (ITrackSelection)GetVsService(typeof(ITrackSelection));
+                }
+                return trackSel;
+            }
+        }
 
         /// <summary>
         /// Retrieves the requested service from the Shell.
@@ -181,7 +146,7 @@ namespace Microsoft.SnippetDesigner
         public object GetVsService(Type serviceType)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            IOleServiceProvider oleSp = ServiceProvider;
+            var oleSp = ServiceProvider;
             if (ServiceProvider == null)
             {
                 oleSp = (IOleServiceProvider)SnippetDesignerPackage.Instance.GetService(typeof(IOleServiceProvider));
@@ -198,8 +163,85 @@ namespace Microsoft.SnippetDesigner
             }
         }
 
+        public void SetPropertyGridColors()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            var shell = (IVsUIShell5)GetVsService(typeof(SVsUIShell));
+            var searchBoxBackgroundColorKey = VsColors.GetThemedGDIColor(shell, EnvironmentColors.SearchBoxBackgroundColorKey);
+            var backgroundColorLighter = VsColors.GetThemedGDIColor(shell, EnvironmentColors.BrandedUIBackgroundColorKey);
+            var backgroundColorDarker = VsColors.GetThemedGDIColor(shell, EnvironmentColors.ToolWindowBackgroundColorKey);
+            var foregroundColor = VsColors.GetThemedGDIColor(shell, EnvironmentColors.ToolWindowTextColorKey);
 
-        /// <summary> 
+            codeReplacementsSplitter.BackColor = backgroundColorDarker;
+            languageLabel.BackColor = backgroundColorLighter;
+            languageLabel.ForeColor = foregroundColor;
+            replacementLabel.BackColor = backgroundColorLighter;
+            replacementLabel.ForeColor = foregroundColor;
+            replacementTable.CellBorderStyle = TableLayoutPanelCellBorderStyle.None;
+            shortcutLabel.BackColor = backgroundColorLighter;
+            shortcutLabel.ForeColor = foregroundColor;
+            shortcutTextBox.BackColor = searchBoxBackgroundColorKey;
+            shortcutTextBox.ForeColor = foregroundColor;
+            snippetCodeWindow.BackColor = backgroundColorDarker;
+            snippetCodeWindow.ForeColor = foregroundColor;
+            snippetsLabel.BackColor = backgroundColorLighter;
+            snippetsLabel.ForeColor = foregroundColor;
+            toolStripLanguageBox.BackColor = searchBoxBackgroundColorKey;
+            toolStripLanguageBox.ForeColor = foregroundColor;
+            toolStripSnippetTitles.BackColor = searchBoxBackgroundColorKey;
+            toolStripSnippetTitles.ForeColor = foregroundColor;
+            topCommandBar.BackColor = backgroundColorLighter;
+            topCommandBar.ForeColor = foregroundColor;
+        }
+
+        /// <summary>
+        /// Initialize the command filter needed for the context menus.
+        /// </summary>
+        public void SetupContextMenus()
+        {
+            var filter = new CommandFilter(this);
+            ErrorHandler.ThrowOnFailure(CodeWindow.TextViewAdapter.AddCommandFilter(filter, out var originalFilter));
+            filter.Init(originalFilter);
+        }
+
+        /// <summary>
+        /// Display the context menu for the snippet codeWindowHost where the user clicks
+        /// </summary>
+        public void ShowContextMenu()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            // Get a reference to the UIShell.
+            var uiShell = Package.GetGlobalService(typeof(SVsUIShell)) as IVsUIShell;
+            if (null == uiShell)
+            {
+                return;
+            }
+
+            // Get the position of the cursor.
+            var currentCursorPosition = Cursor.Position;
+            var pnts = new POINTS[1];
+            pnts[0].x = (short)currentCursorPosition.X;
+            pnts[0].y = (short)currentCursorPosition.Y;
+
+            // Show the menu.
+            var menuGuid = GuidList.SnippetDesignerCmdSet;
+            //tell the ui shell to show the context menu
+            uiShell.ShowContextMenu(0, ref menuGuid, (int)PkgCmdIDList.SnippetContextMenu, pnts, snippetCodeWindow.TextViewAdapter as IOleCommandTarget);
+        }
+
+        /// <summary>
+        ///Force the properties window the refresh itself
+        /// </summary>
+        internal void RefreshPropertiesWindow()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            if (TrackSelection != null && selContainer != null)
+            {
+                TrackSelection.OnSelectChange(selContainer);
+            }
+        }
+
+        /// <summary>
         /// Clean up any resources being used.
         /// </summary>
         protected override void Dispose(bool disposing)
@@ -229,162 +271,26 @@ namespace Microsoft.SnippetDesigner
         }
 
         /// <summary>
-        /// Initialize the propery window by createing the codeWindowHost properties class and a selection container
-        /// </summary>
-        private void InitializePropertiesWindow()
-        {
-            trackSel = null;
-            // Create an ArrayList to store the objects that can be selected
-            ArrayList listObjects = new ArrayList();
-
-
-            //Add a custom type provider to filter the properties
-            TypeDescriptor.AddProvider(new FilteredPropertiesTypeDescriptorProvider(typeof (EditorProperties)), typeof (EditorProperties));
-
-            // Create the object that will show the document's properties
-            // on the properties window.
-            EditorProperties prop = new EditorProperties(this);
-            listObjects.Add(prop);
-
-            // Create the SelectionContainer object.
-            selContainer = new SelectionContainer(true, false);
-            selContainer.SelectableObjects = listObjects;
-            selContainer.SelectedObjects = listObjects;
-        }
-
-        /// <summary>
-        /// Display the properties window since it's part of the snippet codeWindowHost
-        /// </summary>
-        private void ShowPropertiesWindow()
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            //show the properties window
-            IVsUIShell vsShell = GetVsService(typeof (SVsUIShell)) as IVsUIShell;
-            Guid propWinGuid = new Guid(Constants.vsWindowKindProperties);
-            IVsWindowFrame propFrame = null;
-            vsShell.FindToolWindow((uint) __VSFINDTOOLWIN.FTW_fForceCreate, ref propWinGuid, out propFrame);
-            if (propFrame != null)
-            {
-                propFrame.Show();
-            }
-        }
-
-        /// <summary>
-        ///Force the properties window the refresh itself
-        /// </summary>
-        internal void RefreshPropertiesWindow()
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            if (TrackSelection != null && selContainer != null)
-            {
-                TrackSelection.OnSelectChange(selContainer);
-            }
-        }
-
-
-        /// <summary>
-        /// Sets the codeWindowHost up for a new blank snippet file and then
-        /// checks if any data is being exported from another codeWindowHost
-        /// </summary>
-        private void InitializeNewSnippet()
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            // until someone change the file, we can consider it not dirty as
-            // the user would be annoyed if we prompt him to save an empty file
-            isDirty = false;
-            isFileNew = true;
-            //load from the export object
-            LoadDataFromExport();
-
-            object captionValue;
-            //get caption and make it title without its extension
-            EditorFrame.GetProperty((int) __VSFPROPID.VSFPROPID_OwnerCaption, out captionValue);
-            ActiveSnippet.Title = SnippetTitle = Path.GetFileNameWithoutExtension(captionValue.ToString());
-
-            //add titles to snippet titles property
-            var titles = new CollectionWithEvents<string>();
-            titles.Add(SnippetTitle);
-            SnippetTitles = titles;
-            SnippetAuthor = SnippetDesignerPackage.VSRegisteredName;
-
-            //make sure title is in snippets data memory
-            PushFieldsIntoActiveSnippet();
-        }
-
-        /// <summary>
-        /// load the snippet from the exported code
-        /// </summary>
-        private void LoadDataFromExport()
-        {
-            //get the current export data object
-            ExportToSnippetData exportData = snippetDesignerPackage.ExportSnippetData;
-            if (exportData != null) //if this object isnt null
-            {
-                SnippetCode = exportData.Code; //read the code
-                SnippetLanguage = exportData.Language; //read the language
-                snippetDesignerPackage.ClearSnippetExportData(); //clear the export data
-            }
-        }
-
-
-        /// <summary>
-        /// Initialize the command filter needed for the context menus.
-        /// </summary>
-        public void SetupContextMenus()
-        {
-            CommandFilter filter = new CommandFilter(this);
-            IOleCommandTarget originalFilter;
-            ErrorHandler.ThrowOnFailure(CodeWindow.TextViewAdapter.AddCommandFilter(filter, out originalFilter));
-            filter.Init(originalFilter);
-        }
-
-
-        /// <summary>
-        /// Display the context menu for the snippet codeWindowHost where the user clicks
-        /// </summary>
-        public void ShowContextMenu()
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            // Get a reference to the UIShell.
-            IVsUIShell uiShell = Package.GetGlobalService(typeof (SVsUIShell)) as IVsUIShell;
-            if (null == uiShell)
-            {
-                return;
-            }
-
-            // Get the position of the cursor.
-            Point currentCursorPosition = Cursor.Position;
-            POINTS[] pnts = new POINTS[1];
-            pnts[0].x = (short) currentCursorPosition.X;
-            pnts[0].y = (short) currentCursorPosition.Y;
-
-            // Show the menu.
-            Guid menuGuid = GuidList.SnippetDesignerCmdSet;
-            //tell the ui shell to show the context menu
-            uiShell.ShowContextMenu(0, ref menuGuid, (int) PkgCmdIDList.SnippetContextMenu, pnts, snippetCodeWindow.TextViewAdapter as IOleCommandTarget);
-        }
-
-        /// <summary>
         /// Create a dialog box to use the save the snippet
         /// </summary>
         private void CreateSaveAsDialog()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            string currLang = String.Empty;
+            var currLang = string.Empty;
             if (toolStripLanguageBox.SelectedIndex > -1)
             {
                 currLang = toolStripLanguageBox.SelectedItem.ToString();
             }
 
             currLang = currLang.Trim();
-            string initialFileName = string.Empty;
+            var initialFileName = string.Empty;
             if (snippetDirectories.ContainsKey(currLang))
             {
                 initialFileName = snippetDirectories[currLang];
             }
             else
             {
-                initialFileName = snippetDirectories[String.Empty];
+                initialFileName = snippetDirectories[string.Empty];
             }
 
             if (isFileNew)
@@ -396,42 +302,31 @@ namespace Microsoft.SnippetDesigner
                 initialFileName += Path.Combine(initialFileName, Path.GetFileName(fileName));
             }
 
-
-            int can;
-            string fileaNameNew;
-            IVsUIShell uiShell = Package.GetGlobalService(typeof (SVsUIShell)) as IVsUIShell;
-            int hr = uiShell.SaveDocDataToFile (VSSAVEFLAGS.VSSAVE_SaveAs, this, initialFileName, out fileaNameNew, out can);
-        }
-
-        /// <summary>
-        /// Save the snippet by passing the correct parameters into the generalsave function
-        /// </summary>
-        private void Save()
-        {
-            GeneralSave(fileName, true, 0);
+            var uiShell = Package.GetGlobalService(typeof(SVsUIShell)) as IVsUIShell;
+            var hr = uiShell.SaveDocDataToFile(VSSAVEFLAGS.VSSAVE_SaveAs, this, initialFileName, out var fileaNameNew, out var can);
         }
 
         /// <summary>
         /// Save the contents of the textbox into the specified file. If doing the save on the same file, we need to
         /// suspend notifications for file changes during the save operation.
         /// </summary>
-        /// <param name="fileToLoad">Pointer to the file name. If the fileToLoad parameter is a null reference 
+        /// <param name="fileToLoad">Pointer to the file name. If the fileToLoad parameter is a null reference
         /// we need to save using the current file
         /// </param>
-        /// <param name="doSaveAs">Boolean value that indicates whether the fileNameToNotify parameter is to be used 
+        /// <param name="doSaveAs">Boolean value that indicates whether the fileNameToNotify parameter is to be used
         /// as the current working file.
         /// If doSaveAs == true, fileNameToNotify needs to be made the current file and the dirty flag needs to be cleared after the save.
-        ///                   Also, file notifications need to be enabled for the new file and disabled for the old file 
-        /// If doSaveAs == false, this save operation is a Save a Copy As operation. In this case, 
+        ///                   Also, file notifications need to be enabled for the new file and disabled for the old file
+        /// If doSaveAs == false, this save operation is a Save a Copy As operation. In this case,
         ///                   the current file is unchanged and dirty flag is not cleared
         /// </param>
-        /// <param name="formatIndex">Zero based index into the list of formats that indicates the format in which 
+        /// <param name="formatIndex">Zero based index into the list of formats that indicates the format in which
         /// the file will be saved</param>
         /// <returns>S_OK if the method succeeds</returns>
         private int GeneralSave(string fileNameToSave, bool doSaveAs, uint formatIndex)
         {
-            int hr = VSConstants.S_OK;
-            bool doingSaveOnSameFile = false;
+            var hr = VSConstants.S_OK;
+            var doingSaveOnSameFile = false;
             // If file is null or same --> SAVE
             if (fileNameToSave == null || fileNameToSave == fileName)
             {
@@ -507,12 +402,100 @@ namespace Microsoft.SnippetDesigner
             return hr;
         }
 
+        /// <summary>
+        /// Sets the codeWindowHost up for a new blank snippet file and then
+        /// checks if any data is being exported from another codeWindowHost
+        /// </summary>
+        private void InitializeNewSnippet()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            // until someone change the file, we can consider it not dirty as
+            // the user would be annoyed if we prompt him to save an empty file
+            isDirty = false;
+            isFileNew = true;
+            //load from the export object
+            LoadDataFromExport();
+
+            //get caption and make it title without its extension
+            EditorFrame.GetProperty((int)__VSFPROPID.VSFPROPID_OwnerCaption, out var captionValue);
+            ActiveSnippet.Title = SnippetTitle = Path.GetFileNameWithoutExtension(captionValue.ToString());
+
+            //add titles to snippet titles property
+            var titles = new CollectionWithEvents<string>
+            {
+                SnippetTitle
+            };
+            SnippetTitles = titles;
+            SnippetAuthor = SnippetDesignerPackage.VSRegisteredName;
+
+            //make sure title is in snippets data memory
+            PushFieldsIntoActiveSnippet();
+        }
+
+        /// <summary>
+        /// Initialize the propery window by createing the codeWindowHost properties class and a selection container
+        /// </summary>
+        private void InitializePropertiesWindow()
+        {
+            trackSel = null;
+            // Create an ArrayList to store the objects that can be selected
+            var listObjects = new ArrayList();
+
+            //Add a custom type provider to filter the properties
+            TypeDescriptor.AddProvider(new FilteredPropertiesTypeDescriptorProvider(typeof(EditorProperties)), typeof(EditorProperties));
+
+            // Create the object that will show the document's properties
+            // on the properties window.
+            var prop = new EditorProperties(this);
+            listObjects.Add(prop);
+
+            // Create the SelectionContainer object.
+            selContainer = new SelectionContainer(true, false)
+            {
+                SelectableObjects = listObjects,
+                SelectedObjects = listObjects
+            };
+        }
+
+        /// <summary>
+        /// load the snippet from the exported code
+        /// </summary>
+        private void LoadDataFromExport()
+        {
+            //get the current export data object
+            var exportData = snippetDesignerPackage.ExportSnippetData;
+            if (exportData != null) //if this object isnt null
+            {
+                SnippetCode = exportData.Code; //read the code
+                SnippetLanguage = exportData.Language; //read the language
+                snippetDesignerPackage.ClearSnippetExportData(); //clear the export data
+            }
+        }
+
+        /// <summary>
+        /// Save the snippet by passing the correct parameters into the generalsave function
+        /// </summary>
+        private void Save() => GeneralSave(fileName, true, 0);
+
+        /// <summary>
+        /// Display the properties window since it's part of the snippet codeWindowHost
+        /// </summary>
+        private void ShowPropertiesWindow()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            //show the properties window
+            var vsShell = GetVsService(typeof(SVsUIShell)) as IVsUIShell;
+            var propWinGuid = new Guid(Constants.vsWindowKindProperties);
+            vsShell.FindToolWindow((uint)__VSFINDTOOLWIN.FTW_fForceCreate, ref propWinGuid, out var propFrame);
+            if (propFrame != null)
+            {
+                propFrame.Show();
+            }
+        }
+
         #region IVsWindowPane Members
 
-        public int ClosePane()
-        {
-            return VSConstants.S_OK;
-        }
+        public int ClosePane() => VSConstants.S_OK;
 
         public int CreatePaneWindow(IntPtr hwndParent, int x, int y, int cx, int cy, out IntPtr hwnd)
         {
@@ -533,15 +516,9 @@ namespace Microsoft.SnippetDesigner
             return VSConstants.S_OK;
         }
 
-        public int LoadViewState(IStream loadStream)
-        {
-            return VSConstants.S_OK;
-        }
+        public int LoadViewState(IStream loadStream) => VSConstants.S_OK;
 
-        public int SaveViewState(IStream saveStream)
-        {
-            return VSConstants.S_OK;
-        }
+        public int SaveViewState(IStream saveStream) => VSConstants.S_OK;
 
         /// <summary>
         /// Called by the enviorment to provide us with our site
@@ -554,8 +531,8 @@ namespace Microsoft.SnippetDesigner
             ThreadHelper.ThrowIfNotOnUIThread();
             ServiceProvider = psp;
             //Guid to be used in SetGuidProperty as a ref parameter to tell frame that we want texteditor key bindings
-            Guid cmdUI_TextEditor = GuidList.textEditorFactory;
-            int hr = EditorFrame.SetGuidProperty((int) __VSFPROPID.VSFPROPID_InheritKeyBindings, ref cmdUI_TextEditor);
+            var cmdUI_TextEditor = GuidList.textEditorFactory;
+            var hr = EditorFrame.SetGuidProperty((int)__VSFPROPID.VSFPROPID_InheritKeyBindings, ref cmdUI_TextEditor);
 
             return hr;
         }
@@ -568,7 +545,7 @@ namespace Microsoft.SnippetDesigner
         public int TranslateAccelerator(MSG[] messagesToTranslate)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            int hr = VSConstants.S_FALSE;
+            var hr = VSConstants.S_FALSE;
             if (messagesToTranslate == null)
             {
                 return hr;
@@ -577,7 +554,7 @@ namespace Microsoft.SnippetDesigner
             // defer to active code window
             if (activeTextView != null)
             {
-                IVsWindowPane vsWindowPane = (IVsWindowPane) activeTextView;
+                var vsWindowPane = (IVsWindowPane)activeTextView;
                 hr = vsWindowPane.TranslateAccelerator(messagesToTranslate);
             }
             else
@@ -588,35 +565,47 @@ namespace Microsoft.SnippetDesigner
                     case NativeMethods.WM_SYSKEYDOWN:
                     case NativeMethods.WM_CHAR:
                     case NativeMethods.WM_SYSCHAR:
+                    {
+                        var msg = new Message
                         {
-                            Message msg = new Message();
-                            msg.HWnd = messagesToTranslate[0].hwnd;
-                            msg.Msg = (int) messagesToTranslate[0].message;
-                            msg.LParam = messagesToTranslate[0].lParam;
-                            msg.WParam = messagesToTranslate[0].wParam;
+                            HWnd = messagesToTranslate[0].hwnd,
+                            Msg = (int)messagesToTranslate[0].message,
+                            LParam = messagesToTranslate[0].lParam,
+                            WParam = messagesToTranslate[0].wParam
+                        };
 
-                            Control ctrl = FromChildHandle(msg.HWnd);
-                            if (ctrl != null && ctrl.PreProcessMessage(ref msg))
-                                hr = VSConstants.S_OK;
+                        var ctrl = FromChildHandle(msg.HWnd);
+                        if (ctrl != null && ctrl.PreProcessMessage(ref msg))
+                        {
+                            hr = VSConstants.S_OK;
                         }
-                        break;
+                    }
+                    break;
 
                     default:
                         break;
                 }
             }
 
-
             return hr;
         }
 
-        #endregion
+        #endregion IVsWindowPane Members
 
         #region File Change Notification Helpers
 
         /// <summary>
-        /// In this function we inform the shell when we wish to receive 
-        /// events when our file is changed or we inform the shell when 
+        /// Notify the codeWindowHost of the changes made to a directory
+        /// </summary>
+        /// <param name="pszDirectory">Name of the directory that has changed</param>
+        /// <returns></returns>
+        int IVsFileChangeEvents.DirectoryChanged(string pszDirectory) =>
+            //Nothing to do here
+            VSConstants.S_OK;
+
+        /// <summary>
+        /// In this function we inform the shell when we wish to receive
+        /// events when our file is changed or we inform the shell when
         /// we wish not to receive events anymore.
         /// </summary>
         /// <param name="fileNameToNotify">File name string</param>
@@ -627,23 +616,28 @@ namespace Microsoft.SnippetDesigner
             ThreadHelper.ThrowIfNotOnUIThread();
             Trace.WriteLine(string.Format(CultureInfo.CurrentCulture, "\t **** Inside SetFileChangeNotification ****"));
 
-            int result = VSConstants.E_FAIL;
+            var result = VSConstants.E_FAIL;
 
             //Get the File Change service
             if (null == vsFileChangeEx)
-                vsFileChangeEx = (IVsFileChangeEx) GetVsService(typeof (SVsFileChangeEx));
+            {
+                vsFileChangeEx = (IVsFileChangeEx)GetVsService(typeof(SVsFileChangeEx));
+            }
+
             if (null == vsFileChangeEx)
+            {
                 return VSConstants.E_UNEXPECTED;
+            }
 
             // Setup Notification if startNotify is TRUE, Remove if startNotify is FALSE.
             if (startNotify)
             {
                 if (vsFileChangeCookie == VSConstants.VSCOOKIE_NIL)
                 {
-                    //Receive notifications if either the attributes of the file change or 
+                    //Receive notifications if either the attributes of the file change or
                     //if the size of the file changes or if the last modified time of the file changes
                     result = vsFileChangeEx.AdviseFileChange(fileNameToNotify,
-                                                             (uint) (_VSFILECHANGEFLAGS.VSFILECHG_Attr | _VSFILECHANGEFLAGS.VSFILECHG_Size | _VSFILECHANGEFLAGS.VSFILECHG_Time),
+                                                             (uint)(_VSFILECHANGEFLAGS.VSFILECHG_Attr | _VSFILECHANGEFLAGS.VSFILECHG_Size | _VSFILECHANGEFLAGS.VSFILECHG_Time),
                                                              this,
                                                              out vsFileChangeCookie);
                     if (vsFileChangeCookie == VSConstants.VSCOOKIE_NIL)
@@ -666,18 +660,7 @@ namespace Microsoft.SnippetDesigner
             return result;
         }
 
-        /// <summary>
-        /// Notify the codeWindowHost of the changes made to a directory
-        /// </summary>
-        /// <param name="pszDirectory">Name of the directory that has changed</param>
-        /// <returns></returns>
-        int IVsFileChangeEvents.DirectoryChanged(string pszDirectory)
-        {
-            //Nothing to do here
-            return VSConstants.S_OK;
-        }
-
-        #endregion
+        #endregion File Change Notification Helpers
 
         #region IOleCommandTarget Members
 
@@ -695,47 +678,47 @@ namespace Microsoft.SnippetDesigner
         public int Exec(ref Guid commandGroup, uint commandID, uint commandOption, IntPtr pvaIn, IntPtr pvaOut)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            int hr = (int) VisualStudio.OLE.Interop.Constants.OLECMDERR_E_NOTSUPPORTED;
+            var hr = (int)VisualStudio.OLE.Interop.Constants.OLECMDERR_E_NOTSUPPORTED;
             if (commandGroup == VSConstants.GUID_VSStandardCommandSet97)
             {
                 switch (commandID)
                 {
-                    case (uint) VSConstants.VSStd97CmdID.Cut:
-                    case (uint) VSConstants.VSStd97CmdID.Copy:
-                    case (uint) VSConstants.VSStd97CmdID.Paste:
+                    case (uint)VSConstants.VSStd97CmdID.Cut:
+                    case (uint)VSConstants.VSStd97CmdID.Copy:
+                    case (uint)VSConstants.VSStd97CmdID.Paste:
+                    {
+                        if (activeTextView == null)
                         {
-                            if (activeTextView == null)
-                            {
-                                //catch the cut copy and paste messages sent to grid view
-                                return VSConstants.S_OK;
-                            }
-                            break;
-                        }
-
-                    case (uint) VSConstants.VSStd97CmdID.SaveProjectItem:
-                    case (uint) VSConstants.VSStd97CmdID.Save:
-                        {
-                            //is this a new file
-                            if (isFileNew)
-                            {
-                                //show a save dialog
-                                CreateSaveAsDialog();
-                            }
-                            else
-                            {
-                                //no save dialog needed just save
-                                Save();
-                            }
-
+                            //catch the cut copy and paste messages sent to grid view
                             return VSConstants.S_OK;
                         }
-                    case (uint) VSConstants.VSStd97CmdID.SaveProjectItemAs:
-                    case (uint) VSConstants.VSStd97CmdID.SaveAs:
+                        break;
+                    }
+
+                    case (uint)VSConstants.VSStd97CmdID.SaveProjectItem:
+                    case (uint)VSConstants.VSStd97CmdID.Save:
+                    {
+                        //is this a new file
+                        if (isFileNew)
                         {
                             //show a save dialog
                             CreateSaveAsDialog();
-                            return VSConstants.S_OK;
                         }
+                        else
+                        {
+                            //no save dialog needed just save
+                            Save();
+                        }
+
+                        return VSConstants.S_OK;
+                    }
+                    case (uint)VSConstants.VSStd97CmdID.SaveProjectItemAs:
+                    case (uint)VSConstants.VSStd97CmdID.SaveAs:
+                    {
+                        //show a save dialog
+                        CreateSaveAsDialog();
+                        return VSConstants.S_OK;
+                    }
                     default:
                         break;
                 }
@@ -746,10 +729,9 @@ namespace Microsoft.SnippetDesigner
             //this lets the codewindow get keystrokes
             if (activeTextView != null)
             {
-                IOleCommandTarget cmdTarget = (IOleCommandTarget) activeTextView;
+                var cmdTarget = (IOleCommandTarget)activeTextView;
                 hr = cmdTarget.Exec(ref commandGroup, commandID, commandOption, pvaIn, pvaOut);
             }
-
 
             return hr;
         }
@@ -765,21 +747,20 @@ namespace Microsoft.SnippetDesigner
         public int QueryStatus(ref Guid commandGroup, uint commandCount, OLECMD[] prgCmds, IntPtr cmdText)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            int hr = (int) VisualStudio.OLE.Interop.Constants.OLECMDERR_E_NOTSUPPORTED;
-
+            var hr = (int)VisualStudio.OLE.Interop.Constants.OLECMDERR_E_NOTSUPPORTED;
 
             //Check if the activeTextView is not null, if it isnt then the codewindow has focus
             //when the code window has focus we want to query its status of the current command
             if (activeTextView != null)
             {
-                IOleCommandTarget cmdTarget = (IOleCommandTarget) activeTextView;
+                var cmdTarget = (IOleCommandTarget)activeTextView;
                 hr = cmdTarget.QueryStatus(ref commandGroup, commandCount, prgCmds, cmdText);
             }
 
             return hr;
         }
 
-        #endregion
+        #endregion IOleCommandTarget Members
 
         #region IOleServiceProvider Members
 
@@ -794,7 +775,9 @@ namespace Microsoft.SnippetDesigner
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             if (ServiceProvider != null)
+            {
                 return ServiceProvider.QueryService(ref guidService, ref riid, out ppvObject);
+            }
             else
             {
                 ppvObject = IntPtr.Zero;
@@ -803,7 +786,7 @@ namespace Microsoft.SnippetDesigner
             }
         }
 
-        #endregion
+        #endregion IOleServiceProvider Members
 
         #region IPersistFileFormat Members
 
@@ -819,74 +802,23 @@ namespace Microsoft.SnippetDesigner
         }
 
         /// <summary>
-        /// Notifies the object that it has concluded the Save transaction
-        /// In this method we compare the new filename with the previous one
-        /// if they have changed then we need to update the running document table with this change
+        /// Returns the class identifier of the codeWindowHost type
         /// </summary>
-        /// <param name="fileToLoad">Pointer to the file name</param>
-        /// <returns>S_OK if the funtion succeeds</returns>
-        int IPersistFileFormat.SaveCompleted(string fileSaved)
+        /// <param name="classID">pointer to the class identifier</param>
+        /// <returns>S_OK if the method succeeds</returns>
+        int IPersistFileFormat.GetClassID(out Guid classID)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            //Make sure we just did a save as or a save n a new file otherwise the following isnt needed
-            if (previousFileName.Length > 0 && fileSaved.Length > 0 && previousFileName != fileSaved)
-            {
-                // Get a reference to the Running Document Table
-                IVsRunningDocumentTable runningDocTable = (IVsRunningDocumentTable) GetVsService(typeof (SVsRunningDocumentTable));
-                int hr = VSConstants.S_OK;
-
-                // Lock the document and get the documents information
-                uint docCookie;
-                IVsHierarchy hierarchy;
-                uint itemID;
-                IntPtr docData;
-                hr = runningDocTable.FindAndLockDocument(
-                    (uint) _VSRDTFLAGS.RDT_ReadLock,
-                    previousFileName,
-                    out hierarchy,
-                    out itemID,
-                    out docData,
-                    out docCookie
-                    );
-
-                IntPtr hier = Marshal.GetComInterfaceForObject(hierarchy, typeof (IVsHierarchy));
-
-                //Because we are handling the save ourselves we break some of the things auotmatically handled by the RDT
-                //for example when we save as the file name in the RDT wont be updated to the new file
-                // to fix this we just rename the file in the RDT as seen below
-                hr = runningDocTable.RenameDocument(previousFileName, fileSaved, hier, itemID);
-                if (isFileNew) //is this a files first save
-                {
-                    //if this is a new file and its first save then we have to do something special here
-                    //since we are handling the save manually some thing in the rdts so get propagated correctly
-                    //so we need to tell the RDT that this file is not a temp file otherwise it will think
-                    // the recently renamed file is still a temporay file that is bad
-                    hierarchy.SetProperty(itemID, (int) __VSHPROPID.VSHPROPID_IsNewUnsavedItem, false);
-                    isFileNew = false; //this is no longer the files first save
-                }
-
-                //the reason we need this is not clear right now but when we have a new file in its tab caption
-                //isnt updated so make sure it is updated
-                EditorFrame.SetProperty((int) __VSFPROPID.VSFPROPID_OwnerCaption, Path.GetFileName(fileName));
-
-                // Unlock the document.
-                // Note that we have to unlock the document even if the previous call failed.
-                runningDocTable.UnlockDocument((uint) _VSRDTFLAGS.RDT_ReadLock, docCookie);
-                //release reference to IVsHierarchy intptr
-                Marshal.Release(hier);
-                // Check ff the call to NotifyDocChanged failed.
-                ErrorHandler.ThrowOnFailure(hr);
-            }
+            ((IPersist)this).GetClassID(out classID);
             return VSConstants.S_OK;
         }
 
-
         /// <summary>
-        /// Returns the path to the object's current working file 
+        /// Returns the path to the object's current working file
         /// </summary>
         /// <param name="currentFileName">Pointer to the file name</param>
         /// <param name="formatIndex">Value that indicates the current format of the file as a zero based index
-        /// into the list of formats. Since we support only a single format, we need to return zero. 
+        /// into the list of formats. Since we support only a single format, we need to return zero.
         /// Subsequently, we will return a single element in the format list through a call to GetFormatList.</param>
         /// <returns></returns>
         int IPersistFileFormat.GetCurFile(out string currentFileName, out uint formatIndex)
@@ -897,11 +829,30 @@ namespace Microsoft.SnippetDesigner
             return VSConstants.S_OK;
         }
 
+        /// <summary>
+        /// Provides the caller with the information necessary to open the standard common "Save As" dialog box.
+        /// This returns an enumeration of supported formats, from which the caller selects the appropriate format.
+        /// Each string for the format is terminated with a newline (\n) character.
+        /// The last string in the buffer must be terminated with the newline character as well.
+        /// The first string in each pair is a display string that describes the filter, such as "Text Only
+        /// (*.txt)". The second string specifies the filter pattern, such as "*.txt". To specify multiple filter
+        /// patterns for a single display string, use a semicolon to separate the patterns: "*.htm;*.html;*.asp".
+        /// A pattern string can be a combination of valid file name characters and the asterisk (*) wildcard character.
+        /// Do not include spaces in the pattern string. The following string is an example of a file pattern string:
+        /// "HTML File (*.htm; *.html; *.asp)\n*.htm;*.html;*.asp\nText File (*.txt)\n*.txt\n."
+        /// </summary>
+        /// <param name="formatList">Pointer to a string that contains pairs of format filter strings</param>
+        /// <returns>S_OK if the method succeeds</returns>
+        int IPersistFileFormat.GetFormatList(out string formatList)
+        {
+            formatList = Resources.EditorFormatString;
+            return VSConstants.S_OK;
+        }
 
         /// <summary>
-        /// Initialization for the object 
+        /// Initialization for the object
         /// </summary>
-        /// <param name="formatIndex">Zero based index into the list of formats that indicates the current format 
+        /// <param name="formatIndex">Zero based index into the list of formats that indicates the current format
         /// of the file</param>
         int IPersistFileFormat.InitNew(uint formatIndex)
         {
@@ -913,44 +864,35 @@ namespace Microsoft.SnippetDesigner
             //initialize the new snippet
             InitializeNewSnippet();
 
-
             return VSConstants.S_OK;
         }
 
-
         /// <summary>
-        /// Returns the class identifier of the codeWindowHost type
+        /// Determines whether an object has changed since being saved to its current file
         /// </summary>
-        /// <param name="classID">pointer to the class identifier</param>
+        /// <param name="dirty">true if the document has changed</param>
         /// <returns>S_OK if the method succeeds</returns>
-        int IPersistFileFormat.GetClassID(out Guid classID)
+        int IPersistFileFormat.IsDirty(out int dirty)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            ((IPersist) this).GetClassID(out classID);
+            var bufferDoc = (IVsPersistDocData)snippetCodeWindow.TextBufferAdapter;
+            if (bufferDoc == null)
+            {
+                dirty = 0;
+                return VSConstants.S_OK;
+            }
+            bufferDoc.IsDocDataDirty(out var codeWindowDirty);
+
+            if (isDirty || codeWindowDirty == 1 || IsFormDirty)
+            {
+                dirty = 1;
+            }
+            else
+            {
+                dirty = 0;
+            }
             return VSConstants.S_OK;
         }
-
-
-        /// <summary>
-        /// Provides the caller with the information necessary to open the standard common "Save As" dialog box. 
-        /// This returns an enumeration of supported formats, from which the caller selects the appropriate format. 
-        /// Each string for the format is terminated with a newline (\n) character. 
-        /// The last string in the buffer must be terminated with the newline character as well. 
-        /// The first string in each pair is a display string that describes the filter, such as "Text Only 
-        /// (*.txt)". The second string specifies the filter pattern, such as "*.txt". To specify multiple filter 
-        /// patterns for a single display string, use a semicolon to separate the patterns: "*.htm;*.html;*.asp". 
-        /// A pattern string can be a combination of valid file name characters and the asterisk (*) wildcard character. 
-        /// Do not include spaces in the pattern string. The following string is an example of a file pattern string: 
-        /// "HTML File (*.htm; *.html; *.asp)\n*.htm;*.html;*.asp\nText File (*.txt)\n*.txt\n."
-        /// </summary>
-        /// <param name="formatList">Pointer to a string that contains pairs of format filter strings</param>
-        /// <returns>S_OK if the method succeeds</returns>
-        int IPersistFileFormat.GetFormatList(out string formatList)
-        {
-            formatList = Resources.EditorFormatString;
-            return VSConstants.S_OK;
-        }
-
 
         /// <summary>
         /// Loads the file content
@@ -967,11 +909,11 @@ namespace Microsoft.SnippetDesigner
                 return VSConstants.E_INVALIDARG;
             }
 
-            int hr = VSConstants.S_OK;
+            var hr = VSConstants.S_OK;
             try
             {
                 // Show the wait cursor while loading the file
-                IVsUIShell VsUiShell = (IVsUIShell) GetService(typeof (SVsUIShell));
+                var VsUiShell = (IVsUIShell)GetService(typeof(SVsUIShell));
                 if (VsUiShell != null)
                 {
                     // Note: we don't want to throw or exit if this call fails, so
@@ -995,13 +937,12 @@ namespace Microsoft.SnippetDesigner
 
                 isDirty = false; //the file is not dirty since we just loaded it
                 //clear the buffer dirty flag, this stops the * from appearing after we load
-                //it doesnt make sense to call a file dirty when you first load it 
+                //it doesnt make sense to call a file dirty when you first load it
                 IVsTextBuffer buffer = snippetCodeWindow.TextBufferAdapter;
                 buffer.SetStateFlags(0);
 
-
                 // Hook up to file change notifications
-                if (String.IsNullOrEmpty(fileName) || 0 != String.Compare(fileName, fileToLoad, true, CultureInfo.CurrentCulture))
+                if (string.IsNullOrEmpty(fileName) || 0 != string.Compare(fileName, fileToLoad, true, CultureInfo.CurrentCulture))
                 {
                     fileName = fileToLoad;
                     SetFileChangeNotification(fileToLoad, true);
@@ -1021,55 +962,26 @@ namespace Microsoft.SnippetDesigner
             return VSConstants.S_OK;
         }
 
-
-        /// <summary>
-        /// Determines whether an object has changed since being saved to its current file
-        /// </summary>
-        /// <param name="dirty">true if the document has changed</param>
-        /// <returns>S_OK if the method succeeds</returns>
-        int IPersistFileFormat.IsDirty(out int dirty)
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            IVsPersistDocData bufferDoc = (IVsPersistDocData) snippetCodeWindow.TextBufferAdapter;
-            if(bufferDoc == null)
-            {
-                dirty = 0;
-                return VSConstants.S_OK;
-            }
-            int codeWindowDirty = 0;
-            bufferDoc.IsDocDataDirty(out codeWindowDirty);
-
-            if (isDirty || codeWindowDirty == 1 || IsFormDirty)
-            {
-                dirty = 1;
-            }
-            else
-            {
-                dirty = 0;
-            }
-            return VSConstants.S_OK;
-        }
-
         /// <summary>
         /// Save the contents of the textbox into the specified file. If doing the save on the same file, we need to
         /// suspend notifications for file changes during the save operation.
         /// </summary>
-        /// <param name="fileNameToSave">Pointer to the file name. If the fileNameToSave parameter is a null reference 
+        /// <param name="fileNameToSave">Pointer to the file name. If the fileNameToSave parameter is a null reference
         /// we need to save using the current file
         /// </param>
-        /// <param name="savaType">Boolean value that indicates whether the fileNameToSave parameter is to be used 
+        /// <param name="savaType">Boolean value that indicates whether the fileNameToSave parameter is to be used
         /// as the current working file.
         /// If savaType != 0, fileNameToSave needs to be made the current file and the dirty flag needs to be cleared after the save.
-        ///                   Also, file notifications need to be enabled for the new file and disabled for the old file 
-        /// If savaType == 0, this save operation is a Save a Copy As operation. In this case, 
+        ///                   Also, file notifications need to be enabled for the new file and disabled for the old file
+        /// If savaType == 0, this save operation is a Save a Copy As operation. In this case,
         ///                   the current file is unchanged and dirty flag is not cleared
         /// </param>
-        /// <param name="formatIndex">Zero based index into the list of formats that indicates the format in which 
+        /// <param name="formatIndex">Zero based index into the list of formats that indicates the format in which
         /// the file will be saved</param>
         /// <returns>S_OK if the method succeeds</returns>
         int IPersistFileFormat.Save(string fileNameToSave, int savaType, uint formatIndex)
         {
-            bool doSaveAs = true;
+            var doSaveAs = true;
             if (savaType == 0)
             {
                 doSaveAs = false;
@@ -1079,179 +991,67 @@ namespace Microsoft.SnippetDesigner
             return GeneralSave(fileNameToSave, doSaveAs, formatIndex);
         }
 
-        #endregion
-
-        #region IVsPersistDocData Members
-
         /// <summary>
-        /// Used to determine if the document data has changed since the last time it was saved
+        /// Notifies the object that it has concluded the Save transaction
+        /// In this method we compare the new filename with the previous one
+        /// if they have changed then we need to update the running document table with this change
         /// </summary>
-        /// <param name="dirty">Will be set to 1 if the data has changed</param>
-        /// <returns>S_OK if the function succeeds</returns>
-        int IVsPersistDocData.IsDocDataDirty(out int dirty)
+        /// <param name="fileToLoad">Pointer to the file name</param>
+        /// <returns>S_OK if the funtion succeeds</returns>
+        int IPersistFileFormat.SaveCompleted(string fileSaved)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            return ((IPersistFileFormat) this).IsDirty(out dirty);
-        }
-
-
-        /// <summary>
-        /// Saves the document data. Before actually saving the file, we first need to indicate to the environment
-        /// that a file is about to be saved. This is done through the "SVsQueryEditQuerySave" service. We call the
-        /// "QuerySaveFile" function on the service instance and then proceed depending on the result returned as follows:
-        /// If result is QSR_SaveOK - We go ahead and save the file and the file is not read only at this point.
-        /// If result is QSR_ForceSaveAs - We invoke the "Save As" functionality which will bring up the Save file name 
-        ///                                dialog 
-        /// If result is QSR_NoSave_Cancel - We cancel the save operation and indicate that the document could not be saved
-        ///                                by setting the "saveCanceled" flag
-        /// If result is QSR_NoSave_Continue - Nothing to do here as the file need not be saved
-        /// </summary>
-        /// <param name="saveFlag">Flags which specify the file save options:
-        /// VSSAVE_Save        - Saves the current file to itself.
-        /// VSSAVE_SaveAs      - Prompts the User for a filename and saves the file to the file specified.
-        /// VSSAVE_SaveCopyAs  - Prompts the user for a filename and saves a copy of the file with a name specified.
-        /// VSSAVE_SilentSave  - Saves the file without prompting for a name or confirmation.  
-        /// </param>
-        /// <param name="newFilePath">The path to the new document</param>
-        /// <param name="saveCanceled">value 1 if the document could not be saved</param>
-        /// <returns></returns>
-        int IVsPersistDocData.SaveDocData(VSSAVEFLAGS saveFlag, out string newFilePath, out int saveCanceled)
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            newFilePath = null;
-            saveCanceled = 0;
-            int hr = VSConstants.S_OK;
-
-            switch (saveFlag)
+            //Make sure we just did a save as or a save n a new file otherwise the following isnt needed
+            if (previousFileName.Length > 0 && fileSaved.Length > 0 && previousFileName != fileSaved)
             {
-                case VSSAVEFLAGS.VSSAVE_Save:
-                case VSSAVEFLAGS.VSSAVE_SilentSave:
-                    {
-                        IVsQueryEditQuerySave2 queryEditQuerySave = (IVsQueryEditQuerySave2) GetVsService(typeof (SVsQueryEditQuerySave));
+                // Get a reference to the Running Document Table
+                var runningDocTable = (IVsRunningDocumentTable)GetVsService(typeof(SVsRunningDocumentTable));
+                var hr = VSConstants.S_OK;
 
-                        // Call QueryEditQuerySave
-                        uint result = 0;
-                        hr = queryEditQuerySave.QuerySaveFile(
-                            fileName,
-                            // filename
-                            0,
-                            // flags
-                            null,
-                            // file attributes
-                            out result); // result
-                        if (ErrorHandler.Failed(hr))
-                            return hr;
+                // Lock the document and get the documents information
+                hr = runningDocTable.FindAndLockDocument(
+                    (uint)_VSRDTFLAGS.RDT_ReadLock,
+                    previousFileName,
+                    out var hierarchy,
+                    out var itemID,
+                    out var docData,
+                    out var docCookie
+                    );
 
-                        // Process according to result from QuerySave
-                        switch ((tagVSQuerySaveResult) result)
-                        {
-                            case tagVSQuerySaveResult.QSR_NoSave_Cancel:
-                                // Note that this is also case tagVSQuerySaveResult.QSR_NoSave_UserCanceled because these
-                                // two tags have the same value.
-                                saveCanceled = ~0;
-                                break;
+                var hier = Marshal.GetComInterfaceForObject(hierarchy, typeof(IVsHierarchy));
 
-                            case tagVSQuerySaveResult.QSR_SaveOK:
-                                {
-                                    // Call the shell to do the save for us
-                                    IVsUIShell uiShell = (IVsUIShell) GetVsService(typeof (SVsUIShell));
-                                    hr = uiShell.SaveDocDataToFile(saveFlag, this, fileName, out newFilePath, out saveCanceled);
-                                    if (ErrorHandler.Failed(hr))
-                                        return hr;
-                                }
-                                break;
+                //Because we are handling the save ourselves we break some of the things auotmatically handled by the RDT
+                //for example when we save as the file name in the RDT wont be updated to the new file
+                // to fix this we just rename the file in the RDT as seen below
+                hr = runningDocTable.RenameDocument(previousFileName, fileSaved, hier, itemID);
+                if (isFileNew) //is this a files first save
+                {
+                    //if this is a new file and its first save then we have to do something special here
+                    //since we are handling the save manually some thing in the rdts so get propagated correctly
+                    //so we need to tell the RDT that this file is not a temp file otherwise it will think
+                    // the recently renamed file is still a temporay file that is bad
+                    hierarchy.SetProperty(itemID, (int)__VSHPROPID.VSHPROPID_IsNewUnsavedItem, false);
+                    isFileNew = false; //this is no longer the files first save
+                }
 
-                            case tagVSQuerySaveResult.QSR_ForceSaveAs:
-                                {
-                                    // Call the shell to do the SaveAS for us
-                                    IVsUIShell uiShell = (IVsUIShell) GetVsService(typeof (SVsUIShell));
-                                    hr = uiShell.SaveDocDataToFile(VSSAVEFLAGS.VSSAVE_SaveAs, this, fileName, out newFilePath, out saveCanceled);
-                                    if (ErrorHandler.Failed(hr))
-                                        return hr;
-                                }
-                                break;
+                //the reason we need this is not clear right now but when we have a new file in its tab caption
+                //isnt updated so make sure it is updated
+                EditorFrame.SetProperty((int)__VSFPROPID.VSFPROPID_OwnerCaption, Path.GetFileName(fileName));
 
-                            case tagVSQuerySaveResult.QSR_NoSave_Continue:
-                                // In this case there is nothing to do.
-                                break;
-
-                            default:
-                                throw new COMException(Resources.SCCError);
-                        }
-                        break;
-                    }
-                case VSSAVEFLAGS.VSSAVE_SaveAs:
-                case VSSAVEFLAGS.VSSAVE_SaveCopyAs:
-                    {
-                        // Make sure the file name as the right extension
-                        if (string.Compare(StringConstants.SnippetExtension, Path.GetExtension(fileName), true, CultureInfo.InvariantCulture) != 0)
-                        {
-                            fileName += StringConstants.SnippetExtension;
-                        }
-                        // Call the shell to do the save for us
-                        IVsUIShell uiShell = (IVsUIShell) GetVsService(typeof (SVsUIShell));
-                        hr = uiShell.SaveDocDataToFile(saveFlag, this, fileName, out newFilePath, out saveCanceled);
-                        if (ErrorHandler.Failed(hr))
-                            return hr;
-                        break;
-                    }
-                default:
-                    throw new ArgumentException(Resources.BadSaveFlags);
+                // Unlock the document.
+                // Note that we have to unlock the document even if the previous call failed.
+                runningDocTable.UnlockDocument((uint)_VSRDTFLAGS.RDT_ReadLock, docCookie);
+                //release reference to IVsHierarchy intptr
+                Marshal.Release(hier);
+                // Check ff the call to NotifyDocChanged failed.
+                ErrorHandler.ThrowOnFailure(hr);
             }
-            ;
-
             return VSConstants.S_OK;
         }
 
-        /// <summary>
-        /// Loads the document data from the file specified
-        /// Set its buffer moniker to a random guid to make sure that the language services
-        /// can tell the difference between multiple code windows.  The c# and J# language services
-        /// compare bufffer monikers and since our filename isnt the monkiker since the buffer is in memory
-        /// we must add unique random one
-        /// </summary>
-        /// <param name="fileToLoad">Path to the document file which needs to be loaded</param>
-        /// <returns>S_Ok if the method succeeds</returns>
-        int IVsPersistDocData.LoadDocData(string fileToLoad)
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            //set the buffer moniker
-            IVsUserData udata = (IVsUserData) CodeWindow.TextBufferAdapter;
-            //generate random gui
-            string uniqueMoniker = Guid.NewGuid().ToString();
-            //guid for buffer moniker property
-            Guid bufferMonikerGuid = typeof (IVsUserData).GUID;
-            //set the moniker
-            udata.SetData(ref bufferMonikerGuid, uniqueMoniker);
+        #endregion IPersistFileFormat Members
 
-            //continue with load of the document
-            return ((IPersistFileFormat) this).Load(fileToLoad, 0, 0);
-        }
-
-        /// <summary>
-        /// Used to set the initial name for unsaved, newly created document data
-        /// </summary>
-        /// <param name="pszDocDataPath">String containing the path to the document. We need to ignore this parameter
-        /// </param>
-        /// <returns>S_OK if the mthod succeeds</returns>
-        int IVsPersistDocData.SetUntitledDocPath(string pszDocDataPath)
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            return ((IPersistFileFormat) this).InitNew(snippetFormat);
-        }
-
-
-        /// <summary>
-        /// Returns the Guid of the codeWindowHost factory that created the IVsPersistDocData object
-        /// </summary>
-        /// <param name="classID">Pointer to the class identifier of the codeWindowHost type</param>
-        /// <returns>S_OK if the method succeeds</returns>
-        int IVsPersistDocData.GetGuidEditorType(out Guid classID)
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            return ((IPersistFileFormat) this).GetClassID(out classID);
-        }
-
+        #region IVsPersistDocData Members
 
         /// <summary>
         /// Close the IVsPersistDocData object
@@ -1268,6 +1068,27 @@ namespace Microsoft.SnippetDesigner
             return VSConstants.S_OK;
         }
 
+        /// <summary>
+        /// Returns the Guid of the codeWindowHost factory that created the IVsPersistDocData object
+        /// </summary>
+        /// <param name="classID">Pointer to the class identifier of the codeWindowHost type</param>
+        /// <returns>S_OK if the method succeeds</returns>
+        int IVsPersistDocData.GetGuidEditorType(out Guid classID)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            return ((IPersistFileFormat)this).GetClassID(out classID);
+        }
+
+        /// <summary>
+        /// Used to determine if the document data has changed since the last time it was saved
+        /// </summary>
+        /// <param name="dirty">Will be set to 1 if the data has changed</param>
+        /// <returns>S_OK if the function succeeds</returns>
+        int IVsPersistDocData.IsDocDataDirty(out int dirty)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            return ((IPersistFileFormat)this).IsDirty(out dirty);
+        }
 
         /// <summary>
         /// Determines if it is possible to reload the document data
@@ -1281,6 +1102,53 @@ namespace Microsoft.SnippetDesigner
             return VSConstants.S_OK;
         }
 
+        /// <summary>
+        /// Loads the document data from the file specified
+        /// Set its buffer moniker to a random guid to make sure that the language services
+        /// can tell the difference between multiple code windows.  The c# and J# language services
+        /// compare bufffer monikers and since our filename isnt the monkiker since the buffer is in memory
+        /// we must add unique random one
+        /// </summary>
+        /// <param name="fileToLoad">Path to the document file which needs to be loaded</param>
+        /// <returns>S_Ok if the method succeeds</returns>
+        int IVsPersistDocData.LoadDocData(string fileToLoad)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            //set the buffer moniker
+            var udata = (IVsUserData)CodeWindow.TextBufferAdapter;
+            //generate random gui
+            var uniqueMoniker = Guid.NewGuid().ToString();
+            //guid for buffer moniker property
+            var bufferMonikerGuid = typeof(IVsUserData).GUID;
+            //set the moniker
+            udata.SetData(ref bufferMonikerGuid, uniqueMoniker);
+
+            //continue with load of the document
+            return ((IPersistFileFormat)this).Load(fileToLoad, 0, 0);
+        }
+
+        /// <summary>
+        /// Called by the Running Document Table when it registers the document data.
+        /// </summary>
+        /// <param name="docCookie">Handle for the document to be registered</param>
+        /// <param name="hierNew">Pointer to the IVsHierarchy interface</param>
+        /// <param name="itemidNew">Item identifier of the document to be registered from VSITEM</param>
+        /// <returns></returns>
+        int IVsPersistDocData.OnRegisterDocData(uint docCookie, IVsHierarchy hierNew, uint itemidNew) => VSConstants.S_OK;
+
+        /// <summary>
+        /// Reloads the document data
+        /// </summary>
+        /// <param name="ignoreNextChange">Flag indicating whether to ignore the next file change when reloading the document data.
+        /// This flag should not be set for us since we implement the "IVsDocDataFileChangeControl" interface in order to
+        /// indicate ignoring of file changes
+        /// </param>
+        /// <returns>S_OK if the mthod succeeds</returns>
+        int IVsPersistDocData.ReloadDocData(uint ignoreNextChange)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            return ((IPersistFileFormat)this).Load(fileName, ignoreNextChange, 0);
+        }
 
         /// <summary>
         /// Renames the document data
@@ -1290,81 +1158,141 @@ namespace Microsoft.SnippetDesigner
         /// <param name="itemidNew"></param>
         /// <param name="newFileName"></param>
         /// <returns></returns>
-        int IVsPersistDocData.RenameDocData(uint attributes, IVsHierarchy hierNew, uint itemidNew, string newFileName)
-        {
+        int IVsPersistDocData.RenameDocData(uint attributes, IVsHierarchy hierNew, uint itemidNew, string newFileName) =>
             // TODO:  Add EditorPane.RenameDocData implementation
+            VSConstants.S_OK;
+
+        /// <summary>
+        /// Saves the document data. Before actually saving the file, we first need to indicate to the environment
+        /// that a file is about to be saved. This is done through the "SVsQueryEditQuerySave" service. We call the
+        /// "QuerySaveFile" function on the service instance and then proceed depending on the result returned as follows:
+        /// If result is QSR_SaveOK - We go ahead and save the file and the file is not read only at this point.
+        /// If result is QSR_ForceSaveAs - We invoke the "Save As" functionality which will bring up the Save file name
+        ///                                dialog
+        /// If result is QSR_NoSave_Cancel - We cancel the save operation and indicate that the document could not be saved
+        ///                                by setting the "saveCanceled" flag
+        /// If result is QSR_NoSave_Continue - Nothing to do here as the file need not be saved
+        /// </summary>
+        /// <param name="saveFlag">Flags which specify the file save options:
+        /// VSSAVE_Save        - Saves the current file to itself.
+        /// VSSAVE_SaveAs      - Prompts the User for a filename and saves the file to the file specified.
+        /// VSSAVE_SaveCopyAs  - Prompts the user for a filename and saves a copy of the file with a name specified.
+        /// VSSAVE_SilentSave  - Saves the file without prompting for a name or confirmation.
+        /// </param>
+        /// <param name="newFilePath">The path to the new document</param>
+        /// <param name="saveCanceled">value 1 if the document could not be saved</param>
+        /// <returns></returns>
+        int IVsPersistDocData.SaveDocData(VSSAVEFLAGS saveFlag, out string newFilePath, out int saveCanceled)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            newFilePath = null;
+            saveCanceled = 0;
+            var hr = VSConstants.S_OK;
+
+            switch (saveFlag)
+            {
+                case VSSAVEFLAGS.VSSAVE_Save:
+                case VSSAVEFLAGS.VSSAVE_SilentSave:
+                {
+                    var queryEditQuerySave = (IVsQueryEditQuerySave2)GetVsService(typeof(SVsQueryEditQuerySave));
+
+                    // Call QueryEditQuerySave
+                    hr = queryEditQuerySave.QuerySaveFile(
+                        fileName,
+                        // filename
+                        0,
+                        // flags
+                        null,
+                        // file attributes
+                        out var result); // result
+                    if (ErrorHandler.Failed(hr))
+                    {
+                        return hr;
+                    }
+
+                    // Process according to result from QuerySave
+                    switch ((tagVSQuerySaveResult)result)
+                    {
+                        case tagVSQuerySaveResult.QSR_NoSave_Cancel:
+                            // Note that this is also case tagVSQuerySaveResult.QSR_NoSave_UserCanceled because these
+                            // two tags have the same value.
+                            saveCanceled = ~0;
+                            break;
+
+                        case tagVSQuerySaveResult.QSR_SaveOK:
+                        {
+                            // Call the shell to do the save for us
+                            var uiShell = (IVsUIShell)GetVsService(typeof(SVsUIShell));
+                            hr = uiShell.SaveDocDataToFile(saveFlag, this, fileName, out newFilePath, out saveCanceled);
+                            if (ErrorHandler.Failed(hr))
+                            {
+                                return hr;
+                            }
+                        }
+                        break;
+
+                        case tagVSQuerySaveResult.QSR_ForceSaveAs:
+                        {
+                            // Call the shell to do the SaveAS for us
+                            var uiShell = (IVsUIShell)GetVsService(typeof(SVsUIShell));
+                            hr = uiShell.SaveDocDataToFile(VSSAVEFLAGS.VSSAVE_SaveAs, this, fileName, out newFilePath, out saveCanceled);
+                            if (ErrorHandler.Failed(hr))
+                            {
+                                return hr;
+                            }
+                        }
+                        break;
+
+                        case tagVSQuerySaveResult.QSR_NoSave_Continue:
+                            // In this case there is nothing to do.
+                            break;
+
+                        default:
+                            throw new COMException(Resources.SCCError);
+                    }
+                    break;
+                }
+                case VSSAVEFLAGS.VSSAVE_SaveAs:
+                case VSSAVEFLAGS.VSSAVE_SaveCopyAs:
+                {
+                    // Make sure the file name as the right extension
+                    if (string.Compare(StringConstants.SnippetExtension, Path.GetExtension(fileName), true, CultureInfo.InvariantCulture) != 0)
+                    {
+                        fileName += StringConstants.SnippetExtension;
+                    }
+                    // Call the shell to do the save for us
+                    var uiShell = (IVsUIShell)GetVsService(typeof(SVsUIShell));
+                    hr = uiShell.SaveDocDataToFile(saveFlag, this, fileName, out newFilePath, out saveCanceled);
+                    if (ErrorHandler.Failed(hr))
+                    {
+                        return hr;
+                    }
+
+                    break;
+                }
+                default:
+                    throw new ArgumentException(Resources.BadSaveFlags);
+            }
+            ;
+
             return VSConstants.S_OK;
         }
 
         /// <summary>
-        /// Reloads the document data
+        /// Used to set the initial name for unsaved, newly created document data
         /// </summary>
-        /// <param name="ignoreNextChange">Flag indicating whether to ignore the next file change when reloading the document data.
-        /// This flag should not be set for us since we implement the "IVsDocDataFileChangeControl" interface in order to 
-        /// indicate ignoring of file changes
+        /// <param name="pszDocDataPath">String containing the path to the document. We need to ignore this parameter
         /// </param>
         /// <returns>S_OK if the mthod succeeds</returns>
-        int IVsPersistDocData.ReloadDocData(uint ignoreNextChange)
+        int IVsPersistDocData.SetUntitledDocPath(string pszDocDataPath)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            return ((IPersistFileFormat) this).Load(fileName, ignoreNextChange, 0);
+            return ((IPersistFileFormat)this).InitNew(snippetFormat);
         }
 
-        /// <summary>
-        /// Called by the Running Document Table when it registers the document data. 
-        /// </summary>
-        /// <param name="docCookie">Handle for the document to be registered</param>
-        /// <param name="hierNew">Pointer to the IVsHierarchy interface</param>
-        /// <param name="itemidNew">Item identifier of the document to be registered from VSITEM</param>
-        /// <returns></returns>
-        int IVsPersistDocData.OnRegisterDocData(uint docCookie, IVsHierarchy hierNew, uint itemidNew)
-        {
-            return VSConstants.S_OK;
-        }
-
-        #endregion
+        #endregion IVsPersistDocData Members
 
         #region IVsFileChangeEvents
-
-        /// <summary>
-        /// Gets an instance of the RunningDocumentTable (RDT) service which manages the set of currently open 
-        /// documents in the environment and then notifies the client that an open document has changed
-        /// </summary>
-        private void NotifyDocChanged()
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            // Make sure that we have a file name
-            if (fileName.Length == 0)
-                return;
-
-            // Get a reference to the Running Document Table
-            IVsRunningDocumentTable runningDocTable = (IVsRunningDocumentTable) GetVsService(typeof (SVsRunningDocumentTable));
-            // Lock the document
-            uint docCookie;
-            IVsHierarchy hierarchy;
-            uint itemID;
-            IntPtr docData;
-            int hr = runningDocTable.FindAndLockDocument(
-                (uint) _VSRDTFLAGS.RDT_ReadLock,
-                fileName,
-                out hierarchy,
-                out itemID,
-                out docData,
-                out docCookie
-                );
-
-            ErrorHandler.ThrowOnFailure(hr);
-
-            // Send the notification
-            hr = runningDocTable.NotifyDocumentChanged(docCookie, (uint) __VSRDTATTRIB.RDTA_DocDataReloaded);
-
-            // Unlock the document.
-            // Note that we have to unlock the document even if the previous call failed.
-            runningDocTable.UnlockDocument((uint) _VSRDTFLAGS.RDT_ReadLock, docCookie);
-
-            // Check ff the call to NotifyDocChanged failed.
-            ErrorHandler.ThrowOnFailure(hr);
-        }
 
         /// <summary>
         /// Notify the codeWindowHost of the changes made to one or more files
@@ -1379,25 +1307,29 @@ namespace Microsoft.SnippetDesigner
 
             //check the different parameters
             if (0 == numberOfChanges || null == filesChanged || null == typesOfChanges)
+            {
                 return VSConstants.E_INVALIDARG;
+            }
 
             //ignore file changes if we are in that mode
             if (changesToIgnore != 0)
+            {
                 return VSConstants.S_OK;
+            }
 
             for (uint i = 0; i < numberOfChanges; i++)
             {
-                if (!String.IsNullOrEmpty(filesChanged[i]) && String.Compare(filesChanged[i], fileName, true, CultureInfo.CurrentCulture) == 0)
+                if (!string.IsNullOrEmpty(filesChanged[i]) && string.Compare(filesChanged[i], fileName, true, CultureInfo.CurrentCulture) == 0)
                 {
                     // if it looks like the file contents have changed (either the size or the modified
                     // time has changed) then we need to prompt the user to see if we should reload the
                     // file. it is important to not syncronisly reload the file inside of this FilesChanged
-                    // notification. first it is possible that there will be more than one FilesChanged 
+                    // notification. first it is possible that there will be more than one FilesChanged
                     // notification being sent (sometimes you get separate notifications for file attribute
                     // changing and file size/time changing). also it is the preferred UI style to not
                     // prompt the user until the user re-activates the environment application window.
                     // this is why we use a timer to delay prompting the user.
-                    if (0 != (typesOfChanges[i] & (int) (_VSFILECHANGEFLAGS.VSFILECHG_Time | _VSFILECHANGEFLAGS.VSFILECHG_Size)))
+                    if (0 != (typesOfChanges[i] & (int)(_VSFILECHANGEFLAGS.VSFILECHG_Time | _VSFILECHANGEFLAGS.VSFILECHG_Size)))
                     {
                         if (!fileChangedTimerSet)
                         {
@@ -1415,6 +1347,44 @@ namespace Microsoft.SnippetDesigner
         }
 
         /// <summary>
+        /// Gets an instance of the RunningDocumentTable (RDT) service which manages the set of currently open
+        /// documents in the environment and then notifies the client that an open document has changed
+        /// </summary>
+        private void NotifyDocChanged()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            // Make sure that we have a file name
+            if (fileName.Length == 0)
+            {
+                return;
+            }
+
+            // Get a reference to the Running Document Table
+            var runningDocTable = (IVsRunningDocumentTable)GetVsService(typeof(SVsRunningDocumentTable));
+            // Lock the document
+            var hr = runningDocTable.FindAndLockDocument(
+                (uint)_VSRDTFLAGS.RDT_ReadLock,
+                fileName,
+                out var hierarchy,
+                out var itemID,
+                out var docData,
+                out var docCookie
+                );
+
+            ErrorHandler.ThrowOnFailure(hr);
+
+            // Send the notification
+            hr = runningDocTable.NotifyDocumentChanged(docCookie, (uint)__VSRDTATTRIB.RDTA_DocDataReloaded);
+
+            // Unlock the document.
+            // Note that we have to unlock the document even if the previous call failed.
+            runningDocTable.UnlockDocument((uint)_VSRDTFLAGS.RDT_ReadLock, docCookie);
+
+            // Check ff the call to NotifyDocChanged failed.
+            ErrorHandler.ThrowOnFailure(hr);
+        }
+
+        /// <summary>
         /// This event is triggered when one of the files loaded into the environment has changed outside of the
         /// codeWindowHost
         /// </summary>
@@ -1426,12 +1396,12 @@ namespace Microsoft.SnippetDesigner
             //Disable the timer
             reloadTimer.Enabled = false;
             // string message = this.GetResourceString("@101");    //get the message string from the resource
-            string message = fileName + Environment.NewLine + Environment.NewLine + Resources.OutsideEditorFileChange;
+            var message = fileName + Environment.NewLine + Environment.NewLine + Resources.OutsideEditorFileChange;
 
-            string title = String.Empty;
-            IVsUIShell VsUiShell = (IVsUIShell) GetVsService(typeof (SVsUIShell));
-            int result = 0;
-            Guid tempGuid = Guid.Empty;
+            var title = string.Empty;
+            var VsUiShell = (IVsUIShell)GetVsService(typeof(SVsUIShell));
+            var result = 0;
+            var tempGuid = Guid.Empty;
             if (VsUiShell != null)
             {
                 //Show up a message box indicating that the file has changed outside of VS environment
@@ -1448,15 +1418,15 @@ namespace Microsoft.SnippetDesigner
                                          out result);
             }
             //if the user selects "Yes", reload the current file
-            if (result == (int) DialogResult.Yes)
+            if (result == (int)DialogResult.Yes)
             {
-                ((IVsPersistDocData) this).ReloadDocData(0);
+                ((IVsPersistDocData)this).ReloadDocData(0);
             }
 
             fileChangedTimerSet = false;
         }
 
-        #endregion
+        #endregion IVsFileChangeEvents
 
         #region IVsTextViewEvents Members
 
@@ -1468,10 +1438,7 @@ namespace Microsoft.SnippetDesigner
         {
         }
 
-        public void OnKillFocus(IVsTextView viewFocusLost)
-        {
-            activeTextView = null;
-        }
+        public void OnKillFocus(IVsTextView viewFocusLost) => activeTextView = null;
 
         public void OnSetBuffer(IVsTextView setView, IVsTextLines setBuffer)
         {
@@ -1490,7 +1457,7 @@ namespace Microsoft.SnippetDesigner
             RefreshReplacementMarkers();
         }
 
-        #endregion
+        #endregion IVsTextViewEvents Members
 
         #region IVsTextLinesEvents
 
@@ -1505,9 +1472,8 @@ namespace Microsoft.SnippetDesigner
                 return;
             }
 
-
-            int startIndex = textLineChanges[0].iStartIndex;
-            int endIndex = textLineChanges[0].iNewEndIndex;
+            var startIndex = textLineChanges[0].iStartIndex;
+            var endIndex = textLineChanges[0].iNewEndIndex;
             if (endIndex - startIndex == SnippetDelimiter.Length)
             {
                 lastCharacterEntered = CodeWindow.GetCharacterAtPosition(new TextPoint(textLineChanges[0].iStartLine, startIndex));
@@ -1520,7 +1486,7 @@ namespace Microsoft.SnippetDesigner
             RefreshReplacementMarkers();
         }
 
-        #endregion
+        #endregion IVsTextLinesEvents
 
         #region IVsDocDataFileChangeControl
 
@@ -1546,17 +1512,17 @@ namespace Microsoft.SnippetDesigner
             return VSConstants.S_OK;
         }
 
-        #endregion
+        #endregion IVsDocDataFileChangeControl
 
         #region IVsFileBackup Members
 
         /// <summary>
-        /// This method is used to Persist the data to a single file. On a successful backup this 
+        /// This method is used to Persist the data to a single file. On a successful backup this
         /// should clear up the backup dirty bit
         /// </summary>
         /// <param name="pszBackupFileName">Name of the file to persist</param>
         /// <returns>S_OK if the data can be successfully persisted.
-        /// This should return STG_S_DATALOSS or STG_E_INVALIDCODEPAGE if there is no way to 
+        /// This should return STG_S_DATALOSS or STG_E_INVALIDCODEPAGE if there is no way to
         /// persist to a file without data loss
         /// </returns>
         int IVsFileBackup.BackupFile(string pszBackupFileName)
@@ -1578,7 +1544,7 @@ namespace Microsoft.SnippetDesigner
         }
 
         /// <summary>
-        /// Used to set the backup dirty bit. This bit should be set when the object is modified 
+        /// Used to set the backup dirty bit. This bit should be set when the object is modified
         /// and cleared on calls to BackupFile and any Save method
         /// </summary>
         /// <param name="backUpDirtyBitSet">the dirty bit to be set</param>
@@ -1586,12 +1552,17 @@ namespace Microsoft.SnippetDesigner
         int IVsFileBackup.IsBackupFileObsolete(out int backUpDirtyBitSet)
         {
             if (backupObsolete)
+            {
                 backUpDirtyBitSet = 1;
+            }
             else
+            {
                 backUpDirtyBitSet = 0;
+            }
+
             return VSConstants.S_OK;
         }
 
-        #endregion
+        #endregion IVsFileBackup Members
     }
 }

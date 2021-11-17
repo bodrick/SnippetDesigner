@@ -8,12 +8,12 @@ using Microsoft.VisualStudio.Utilities;
 
 namespace SnippetDesignerComponents
 {
-    [Export(typeof (IViewTaggerProvider))]
+    [Export(typeof(IViewTaggerProvider))]
     [ContentType("codesnippet")]
-    [TagType(typeof (ClassificationTag))]
+    [TagType(typeof(ClassificationTag))]
     public class SnippetReplacementTaggerProvider : IViewTaggerProvider
     {
-        [Import] private IClassificationTypeRegistryService Registry;
+        [Import] private readonly IClassificationTypeRegistryService Registry;
 
         [Import]
         internal ITextSearchService TextSearchService { get; set; }
@@ -25,9 +25,11 @@ namespace SnippetDesignerComponents
         {
             // Only provide highlighting on the top-level buffer
             if (textView.TextBuffer != buffer)
+            {
                 return null;
+            }
 
-            ITextStructureNavigator textStructureNavigator = TextStructureNavigatorSelector.GetTextStructureNavigator(buffer);
+            var textStructureNavigator = TextStructureNavigatorSelector.GetTextStructureNavigator(buffer);
 
             return new SnippetReplacementTagger(textView, buffer, TextSearchService, textStructureNavigator, Registry.GetClassificationType("snippet-replacement")) as ITagger<T>;
         }
