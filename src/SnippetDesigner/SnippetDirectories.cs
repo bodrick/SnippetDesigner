@@ -4,10 +4,10 @@ using System.Globalization;
 using System.IO;
 using System.Security;
 using System.Text.RegularExpressions;
-using Microsoft.RegistryTools;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.Win32;
+using RegistryTools;
 
 namespace Microsoft.SnippetDesigner
 {

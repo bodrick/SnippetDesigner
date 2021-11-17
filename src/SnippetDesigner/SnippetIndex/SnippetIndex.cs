@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
 using Microsoft.SnippetDesigner.SnippetExplorer;
-using Microsoft.SnippetLibrary;
+using SnippetLibrary;
 
 namespace Microsoft.SnippetDesigner
 {

@@ -1,6 +1,6 @@
 using System.Xml;
 
-namespace Microsoft.SnippetLibrary
+namespace SnippetLibrary
 {
     public class SnippetType
     {
@@ -8,31 +8,23 @@ namespace Microsoft.SnippetLibrary
 
         private string value;
 
+        public SnippetType()
+        {
+        }
+
+        public SnippetType(XmlElement element) => BuildTypeElement(element);
+
+        public SnippetType(string stype) => value = stype;
+
         public string Value
         {
-            get { return value; }
+            get => value;
             set
             {
                 this.value = value;
                 element.InnerText = this.value;
             }
         }
-
-
-        public SnippetType()
-        {
-        }
-
-        public SnippetType(XmlElement element)
-        {
-            BuildTypeElement(element);
-        }
-
-        public SnippetType(string stype)
-        {
-            value = stype;
-        }
-
 
         public void BuildTypeElement(XmlElement element)
         {

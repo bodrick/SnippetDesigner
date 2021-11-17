@@ -4,7 +4,7 @@ using System.ComponentModel;
 using System.ComponentModel.Design;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing.Design;
-using Microsoft.SnippetLibrary;
+using SnippetLibrary;
 
 namespace Microsoft.SnippetDesigner
 {

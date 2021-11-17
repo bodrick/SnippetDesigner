@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 namespace Microsoft.SnippetDesigner
@@ -12,7 +11,7 @@ namespace Microsoft.SnippetDesigner
         JavaScript,
         SQL,
         SQLServerDataTools,
-        HTML, 
+        HTML,
         XAML,
         TypeScript
     }
@@ -30,22 +29,16 @@ namespace Microsoft.SnippetDesigner
         //hash that maps what the display names of the programming languages are to the xml names the snippet schema specifies
         private readonly Dictionary<string, string> displayLanguageToXML = new Dictionary<string, string>();
 
-        public Dictionary<string, string> SnippetSchemaLanguageToDisplay
-        {
-            get { return snippetSchemaLanguageToDisplay; }
-        }
+        public Dictionary<string, string> SnippetSchemaLanguageToDisplay => snippetSchemaLanguageToDisplay;
 
-        public Dictionary<string, string> DisplayLanguageToXML
-        {
-            get { return displayLanguageToXML; }
-        }
+        public Dictionary<string, string> DisplayLanguageToXML => displayLanguageToXML;
 
         /// <summary>
         /// Toes the display form.
         /// </summary>
         /// <param name="lang">The lang.</param>
         /// <returns></returns>
-        public String ToDisplayForm(Language lang)
+        public string ToDisplayForm(Language lang)
         {
             switch (lang)
             {
@@ -70,7 +63,7 @@ namespace Microsoft.SnippetDesigner
                 case Language.TypeScript:
                     return Resources.DisplayNameTypeScript;
                 default:
-                    return String.Empty;
+                    return string.Empty;
             }
         }
 
@@ -79,7 +72,7 @@ namespace Microsoft.SnippetDesigner
         /// </summary>
         /// <param name="lang">The lang.</param>
         /// <returns></returns>
-        public String ToSchemaForm(Language lang)
+        public string ToSchemaForm(Language lang)
         {
             switch (lang)
             {
@@ -106,7 +99,7 @@ namespace Microsoft.SnippetDesigner
                 case Language.TypeScript:
                     return StringConstants.SchemaNameTypeScript;
                 default:
-                    return String.Empty;
+                    return string.Empty;
             }
         }
 
@@ -140,7 +133,7 @@ namespace Microsoft.SnippetDesigner
                 snippetSchemaLanguageToDisplay[StringConstants.SchemaNameTypeScript] = Resources.DisplayNameTypeScript;
             }
 
-            snippetSchemaLanguageToDisplay[String.Empty] = String.Empty;
+            snippetSchemaLanguageToDisplay[string.Empty] = string.Empty;
 
 
 
@@ -169,7 +162,7 @@ namespace Microsoft.SnippetDesigner
                 displayLanguageToXML[Resources.DisplayNameTypeScript] = StringConstants.SchemaNameTypeScript;
             }
 
-            displayLanguageToXML[String.Empty] = String.Empty;
+            displayLanguageToXML[string.Empty] = string.Empty;
         }
     }
 }

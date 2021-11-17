@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using System.Windows;
 using EnvDTE;
 using EnvDTE80;
-using Microsoft.RegistryTools;
 using Microsoft.SnippetDesigner.OptionPages;
 using Microsoft.SnippetDesigner.SnippetExplorer;
 using Microsoft.VisualStudio;
@@ -19,6 +18,7 @@ using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.Win32;
+using RegistryTools;
 using Window = EnvDTE.Window;
 
 namespace Microsoft.SnippetDesigner

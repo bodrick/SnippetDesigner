@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using Microsoft.Win32;
 
-namespace Microsoft.RegistryTools
+namespace RegistryTools
 {
     /// <summary>
     /// get the correct data based on the correct vs reg path
@@ -10,61 +10,32 @@ namespace Microsoft.RegistryTools
     {
         public static string GetVisualStudioUserDataPath(string version)
         {
-            string location = String.Empty;
-            RegistryKey vsKey = GetVSRegKey(Registry.CurrentUser, version);
+            var location = string.Empty;
+            var vsKey = GetVSRegKey(Registry.CurrentUser, version);
             if (vsKey != null)
             {
-                location = (string) vsKey.GetValue("VisualStudioLocation", String.Empty);
+                location = (string)vsKey.GetValue("VisualStudioLocation", string.Empty);
             }
             return location;
         }
 
         public static string GetVSInstallDir(string version = "10.0")
         {
-            string location = String.Empty;
-            RegistryKey vsKey = GetVSRegKey(Registry.LocalMachine, version);
+            var location = string.Empty;
+            var vsKey = GetVSRegKey(Registry.LocalMachine, version);
             if (vsKey != null)
             {
-                location = (string) vsKey.GetValue("InstallDir", String.Empty);
+                location = (string)vsKey.GetValue("InstallDir", string.Empty);
             }
             return location;
         }
 
-        public static int GetVSUILanguage(string version = "10.0")
-        {
-            int language = 1033; // default to english
-            using (RegistryKey vsKey = GetVSRegKey(Registry.CurrentUser, false, version))
-            {
-                if (vsKey != null)
-                {
-                    using (RegistryKey generalKey = vsKey.OpenSubKey("General"))
-                    {
-                        if (generalKey != null)
-                        {
-                            try
-                            {
-                                language = (int) vsKey.GetValue("UILanguage", 1033);
-                            }
-                            catch(InvalidCastException)
-                            {
-                            }
-                        }
-                    }
-                }
-            }
-
-            return language;
-        }
-
-        public static RegistryKey GetVSRegKey(RegistryKey regKey, string version)
-        {
-            return GetVSRegKey(regKey, false, version);
-        }
+        public static RegistryKey GetVSRegKey(RegistryKey regKey, string version) => GetVSRegKey(regKey, false, version);
 
         public static RegistryKey GetVSRegKey(RegistryKey regKey, bool configSection, string version)
         {
-            string versionPath = configSection ? version + "_Config" : version;
-            RegistryKey vsKey = regKey.OpenSubKey(@"Software\Microsoft\VisualStudio\" + versionPath);
+            var versionPath = configSection ? version + "_Config" : version;
+            var vsKey = regKey.OpenSubKey(@"Software\Microsoft\VisualStudio\" + versionPath);
             if (vsKey == null)
             {
                 vsKey = regKey.OpenSubKey(@"Software\Microsoft\VBExpress\" + versionPath);
@@ -87,6 +58,32 @@ namespace Microsoft.RegistryTools
             }
 
             return vsKey;
+        }
+
+        public static int GetVSUILanguage(string version = "10.0")
+        {
+            var language = 1033; // default to english
+            using (var vsKey = GetVSRegKey(Registry.CurrentUser, false, version))
+            {
+                if (vsKey != null)
+                {
+                    using (var generalKey = vsKey.OpenSubKey("General"))
+                    {
+                        if (generalKey != null)
+                        {
+                            try
+                            {
+                                language = (int)vsKey.GetValue("UILanguage", 1033);
+                            }
+                            catch (InvalidCastException)
+                            {
+                            }
+                        }
+                    }
+                }
+            }
+
+            return language;
         }
     }
 }

@@ -1,4 +1,4 @@
-using Microsoft.SnippetLibrary;
+using SnippetLibrary;
 
 namespace Microsoft.SnippetDesigner
 {
