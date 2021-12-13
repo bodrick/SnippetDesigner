@@ -14,13 +14,13 @@ namespace SnippetDesignerComponents
     {
         public const string ReplacementDelimiter = "ReplacementDelimiter";
         public const string TaggerInstance = "TaggerInstance";
-        private readonly IClassificationType classificationType;
-        private readonly object updateLock = new object();
+        private readonly IClassificationType _classificationType;
+        private readonly object _updateLock = new();
 
         public SnippetReplacementTagger(ITextView view, ITextBuffer sourceBuffer, ITextSearchService textSearchService,
-                                        ITextStructureNavigator textStructureNavigator, IClassificationType classificationType)
+            ITextStructureNavigator textStructureNavigator, IClassificationType classificationType)
         {
-            this.classificationType = classificationType;
+            _classificationType = classificationType;
             View = view;
             SourceBuffer = sourceBuffer;
             TextSearchService = textSearchService;
@@ -67,7 +67,7 @@ namespace SnippetDesignerComponents
             // Yield all the replacement spans in the file
             foreach (var span in NormalizedSnapshotSpanCollection.Overlap(spans, wordSpans))
             {
-                yield return new TagSpan<ClassificationTag>(span, new ClassificationTag(classificationType));
+                yield return new TagSpan<ClassificationTag>(span, new ClassificationTag(_classificationType));
             }
         }
 
@@ -76,19 +76,16 @@ namespace SnippetDesignerComponents
         /// <summary>
         /// Perform a synchronous update, in case multiple background threads are running
         /// </summary>
+        /// <param name="newSpans"></param>
         private void SynchronousUpdate(NormalizedSnapshotSpanCollection newSpans)
         {
-            lock (updateLock)
+            lock (_updateLock)
             {
                 WordSpans = newSpans;
 
-                var tempEvent = TagsChanged;
-                if (tempEvent != null)
-                {
-                    tempEvent(this,
-                              new SnapshotSpanEventArgs(new SnapshotSpan(SourceBuffer.CurrentSnapshot, 0,
-                                                                         SourceBuffer.CurrentSnapshot.Length)));
-                }
+                TagsChanged?.Invoke(this,
+                    new SnapshotSpanEventArgs(new SnapshotSpan(SourceBuffer.CurrentSnapshot, 0,
+                        SourceBuffer.CurrentSnapshot.Length)));
             }
         }
 
@@ -96,7 +93,9 @@ namespace SnippetDesignerComponents
         {
             try
             {
-                var delimiter = !View.Properties.ContainsProperty(ReplacementDelimiter) ? null : View.Properties[ReplacementDelimiter] as string;
+                var delimiter = !View.Properties.ContainsProperty(ReplacementDelimiter)
+                    ? null
+                    : View.Properties[ReplacementDelimiter] as string;
                 delimiter = string.IsNullOrEmpty(delimiter) ? "$" : delimiter;
 
                 var validReplacementString = SnippetRegexPatterns.BuildValidReplacementString(delimiter);

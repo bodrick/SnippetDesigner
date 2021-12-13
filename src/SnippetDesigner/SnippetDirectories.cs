@@ -17,13 +17,8 @@ namespace Microsoft.SnippetDesigner
     internal class SnippetDirectories
     {
         public static Lazy<SnippetDirectories> Instance = new Lazy<SnippetDirectories>(() => new SnippetDirectories());
-
-        private readonly List<string> defaultSnippetDirectories = new List<string>();
         private readonly Dictionary<string, string> registryPathReplacements = new Dictionary<string, string>();
         private readonly Regex replaceRegex;
-
-        //snippet directories
-        private readonly Dictionary<string, string> userSnippetDirectories = new Dictionary<string, string>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SnippetDirectories"/> class.
@@ -50,13 +45,13 @@ namespace Microsoft.SnippetDesigner
         /// Gets the paths to all snippets
         /// </summary>
         /// <value>The vs snippet directories.</value>
-        public List<string> DefaultSnippetDirectories => defaultSnippetDirectories;
+        public List<string> DefaultSnippetDirectories { get; } = new List<string>();
 
         /// <summary>
         /// Getsthe user snippet directories. This is used to know where to save to
         /// </summary>
         /// <value>The user snippet directories.</value>
-        public Dictionary<string, string> UserSnippetDirectories => userSnippetDirectories;
+        public Dictionary<string, string> UserSnippetDirectories { get; } = new Dictionary<string, string>();
 
         /// <summary>
         /// Gets the install root.
@@ -164,32 +159,32 @@ namespace Microsoft.SnippetDesigner
         {
             var vsDocDir = RegistryLocations.GetVisualStudioUserDataPath(SnippetDesignerPackage.Instance.VSVersion);
             var snippetDir = Path.Combine(vsDocDir, StringConstants.SnippetDirectoryName);
-            userSnippetDirectories[Resources.DisplayNameCSharp] = Path.Combine(snippetDir, Path.Combine(StringConstants.SnippetDirNameCSharp, StringConstants.MySnippetsDir));
-            userSnippetDirectories[Resources.DisplayNameVisualBasic] = Path.Combine(snippetDir, Path.Combine(StringConstants.SnippetDirNameVisualBasic, StringConstants.MySnippetsDir));
-            userSnippetDirectories[Resources.DisplayNameXML] = Path.Combine(snippetDir, Path.Combine(StringConstants.SnippetDirNameXML, StringConstants.MyXmlSnippetsDir));
-            userSnippetDirectories[Resources.DisplayNameSQL] = Path.Combine(snippetDir, Path.Combine(StringConstants.SnippetDirNameSQL, StringConstants.MySnippetsDir));
-            userSnippetDirectories[Resources.DisplayNameSQLServerDataTools] = Path.Combine(snippetDir, Path.Combine(StringConstants.SnippetDirNameSQLServerDataTools, StringConstants.MySnippetsDir));
+            UserSnippetDirectories[Resources.DisplayNameCSharp] = Path.Combine(snippetDir, Path.Combine(StringConstants.SnippetDirNameCSharp, StringConstants.MySnippetsDir));
+            UserSnippetDirectories[Resources.DisplayNameVisualBasic] = Path.Combine(snippetDir, Path.Combine(StringConstants.SnippetDirNameVisualBasic, StringConstants.MySnippetsDir));
+            UserSnippetDirectories[Resources.DisplayNameXML] = Path.Combine(snippetDir, Path.Combine(StringConstants.SnippetDirNameXML, StringConstants.MyXmlSnippetsDir));
+            UserSnippetDirectories[Resources.DisplayNameSQL] = Path.Combine(snippetDir, Path.Combine(StringConstants.SnippetDirNameSQL, StringConstants.MySnippetsDir));
+            UserSnippetDirectories[Resources.DisplayNameSQLServerDataTools] = Path.Combine(snippetDir, Path.Combine(StringConstants.SnippetDirNameSQLServerDataTools, StringConstants.MySnippetsDir));
 
             if (!SnippetDesignerPackage.Instance.IsVisualStudio2010)
             {
-                userSnippetDirectories[Resources.DisplayNameCPP] = Path.Combine(snippetDir, Path.Combine(StringConstants.SnippetDirNameCPP, StringConstants.MySnippetsDir));
-                userSnippetDirectories[Resources.DisplayNameJavaScript] = Path.Combine(snippetDir, Path.Combine(StringConstants.SnippetDirNameJavaScriptVS11, StringConstants.MySnippetsDir));
+                UserSnippetDirectories[Resources.DisplayNameCPP] = Path.Combine(snippetDir, Path.Combine(StringConstants.SnippetDirNameCPP, StringConstants.MySnippetsDir));
+                UserSnippetDirectories[Resources.DisplayNameJavaScript] = Path.Combine(snippetDir, Path.Combine(StringConstants.SnippetDirNameJavaScriptVS11, StringConstants.MySnippetsDir));
             }
 
             if (!SnippetDesignerPackage.Instance.IsVisualStudio2010 && !SnippetDesignerPackage.Instance.IsVisualStudio2012)
             {
-                userSnippetDirectories[Resources.DisplayNameXAML] = Path.Combine(snippetDir, StringConstants.SnippetDirNameXAML);
+                UserSnippetDirectories[Resources.DisplayNameXAML] = Path.Combine(snippetDir, StringConstants.SnippetDirNameXAML);
             }
 
             var webDevSnippetDir = Path.Combine(snippetDir, StringConstants.VisualWebDeveloper);
             if (SnippetDesignerPackage.Instance.IsVisualStudio2010)
             {
-                userSnippetDirectories[Resources.DisplayNameJavaScript] = Path.Combine(webDevSnippetDir, StringConstants.SnippetDirNameJavaScript);
+                UserSnippetDirectories[Resources.DisplayNameJavaScript] = Path.Combine(webDevSnippetDir, StringConstants.SnippetDirNameJavaScript);
             }
 
-            userSnippetDirectories[Resources.DisplayNameHTML] = Path.Combine(webDevSnippetDir, StringConstants.SnippetDirNameHTML);
+            UserSnippetDirectories[Resources.DisplayNameHTML] = Path.Combine(webDevSnippetDir, StringConstants.SnippetDirNameHTML);
 
-            userSnippetDirectories[string.Empty] = snippetDir;
+            UserSnippetDirectories[string.Empty] = snippetDir;
         }
 
         /// <summary>
@@ -207,7 +202,7 @@ namespace Microsoft.SnippetDesigner
 
                 foreach (var pathToAdd in pathArray)
                 {
-                    if (defaultSnippetDirectories.Contains(pathToAdd))
+                    if (DefaultSnippetDirectories.Contains(pathToAdd))
                     {
                         continue;
                     }
@@ -218,7 +213,7 @@ namespace Microsoft.SnippetDesigner
 
                         // Check if pathToAdd is a more general version of a path we already found
                         // if so we use that since when we get snippets we do it recursivly from a root
-                        foreach (var existingPath in defaultSnippetDirectories)
+                        foreach (var existingPath in DefaultSnippetDirectories)
                         {
                             if (pathToAdd.Contains(existingPath) && !pathToAdd.Equals(existingPath, StringComparison.InvariantCultureIgnoreCase))
                             {
@@ -228,12 +223,12 @@ namespace Microsoft.SnippetDesigner
 
                         foreach (var remove in pathsToRemove)
                         {
-                            defaultSnippetDirectories.Remove(remove);
+                            DefaultSnippetDirectories.Remove(remove);
                         }
 
                         var shouldAdd = true;
                         // Check if there is a path more general than pathToAdd, if so dont add pathToAdd
-                        foreach (var existingPath in defaultSnippetDirectories)
+                        foreach (var existingPath in DefaultSnippetDirectories)
                         {
                             if (existingPath.Contains(pathToAdd))
                             {
@@ -244,7 +239,7 @@ namespace Microsoft.SnippetDesigner
 
                         if (shouldAdd)
                         {
-                            defaultSnippetDirectories.Add(pathToAdd);
+                            DefaultSnippetDirectories.Add(pathToAdd);
                         }
                     }
                 }
@@ -266,10 +261,8 @@ namespace Microsoft.SnippetDesigner
                                            {
                                                return registryPathReplacements[match.Value];
                                            }
-                                           else
-                                           {
-                                               return match.Value;
-                                           }
+
+                                           return match.Value;
                                        })
                 );
             return newPath;

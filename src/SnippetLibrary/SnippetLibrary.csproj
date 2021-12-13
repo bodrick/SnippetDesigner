@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
-    <SignAssembly>True</SignAssembly>
+    <SignAssembly>False</SignAssembly>
     <AssemblyOriginatorKeyFile>C:\Development\Github\SnippetDesigner\src\snippetdesigner.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>

@@ -22,7 +22,9 @@
 
     <!--Defines VK_INSERT -->
     <Extern href="virtkeys.h"/>
-
+  
+    <Include href="KnownImageIds.vsct"/>
+    <Include href="VSGlobals.vsct"/>
 
     <!-- // The CMDS_SECTION section is where we the commands, menus and menu groups are defined.  -->
     <!-- // This section uses a Guid to identify the package that provides the command defined  -->

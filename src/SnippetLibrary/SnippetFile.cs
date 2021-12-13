@@ -202,12 +202,10 @@ namespace SnippetLibrary
                 Snippets.Add(new Snippet(SnippetXmlDoc.DocumentElement, _nsMgr));
                 return;
             }
-            else
+
+            foreach (XmlNode node in SnippetXmlDoc.DocumentElement.SelectNodes("//ns1:CodeSnippet", _nsMgr))
             {
-                foreach (XmlNode node in SnippetXmlDoc.DocumentElement.SelectNodes("//ns1:CodeSnippet", _nsMgr))
-                {
-                    Snippets.Add(new Snippet(node, _nsMgr));
-                }
+                Snippets.Add(new Snippet(node, _nsMgr));
             }
             if (_schemas.Count > 0)
             {
@@ -235,23 +233,20 @@ namespace SnippetLibrary
             switch (e.Severity)
             {
                 case XmlSeverityType.Error:
-                {
                     HasXmlErrors = true;
                     if (_validateSnippetFile)
                     {
                         MessageBox.Show($"\nError: {e.Message}");
                     }
                     break;
-                }
+
                 case XmlSeverityType.Warning:
-                {
                     HasXmlErrors = true;
                     if (_validateSnippetFile)
                     {
                         MessageBox.Show($"\nWarning: {e.Message}");
                     }
                     break;
-                }
             }
         }
     }

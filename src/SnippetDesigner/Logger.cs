@@ -15,49 +15,48 @@ namespace Microsoft.SnippetDesigner
 
     public class Logger : ILogger
     {
-        private readonly IServiceProvider serviceProvider;
+        private readonly IServiceProvider _serviceProvider;
 
-        public Logger(IServiceProvider serviceProvider) => this.serviceProvider = serviceProvider;
+        public Logger(IServiceProvider serviceProvider) => _serviceProvider = serviceProvider;
 
         public void Log(string message, string source, LogType logType) => ThreadHelper.JoinableTaskFactory.Run(async delegate
-                                                                          {
-                                                                              await LogAsync(message, source, logType);
-                                                                          });
+         {
+             await LogAsync(message, source, logType);
+         });
 
         public void Log(string message, string source, Exception e) => ThreadHelper.JoinableTaskFactory.Run(async delegate
-                                                                      {
-                                                                          await LogAsync(message, source, e);
-                                                                      });
+         {
+             await LogAsync(message, source, e);
+         });
 
         public async System.Threading.Tasks.Task LogAsync(string message, string source, LogType logType)
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            var log = serviceProvider.GetService(typeof(SVsActivityLog)) as IVsActivityLog;
-            if (log == null)
+            if (_serviceProvider.GetService(typeof(SVsActivityLog)) is not IVsActivityLog log)
             {
                 return;
             }
 
-            var hr = log.LogEntry((uint)ToEntryType(logType), source, message);
+            _ = log.LogEntry((uint)ToEntryType(logType), source, message);
         }
 
         public async System.Threading.Tasks.Task LogAsync(string message, string source, Exception e)
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            var format = "Message: {0} \n Exception Message: {1} \n Stack Trace: {2}";
-            var log = serviceProvider.GetService(typeof(SVsActivityLog)) as IVsActivityLog;
-            if (log == null)
+            const string format = "Message: {0} \n Exception Message: {1} \n Stack Trace: {2}";
+            if (_serviceProvider.GetService(typeof(SVsActivityLog)) is not IVsActivityLog log)
             {
                 return;
             }
 
-            var hr = log.LogEntry((uint)__ACTIVITYLOG_ENTRYTYPE.ALE_ERROR, source, string.Format(CultureInfo.CurrentCulture, format, message, e.Message, e.StackTrace));
+            _ = log.LogEntry((uint)__ACTIVITYLOG_ENTRYTYPE.ALE_ERROR, source,
+                string.Format(CultureInfo.CurrentCulture, format, message, e.Message, e.StackTrace));
         }
 
         public void MessageBox(string title, string message, LogType logType) => ThreadHelper.JoinableTaskFactory.Run(async delegate
-                                                                                                {
-                                                                                                    await MessageBoxAsync(title, message, logType);
-                                                                                                });
+         {
+             await MessageBoxAsync(title, message, logType);
+         });
 
         public async System.Threading.Tasks.Task MessageBoxAsync(string title, string message, LogType logType)
         {
@@ -72,7 +71,7 @@ namespace Microsoft.SnippetDesigner
                 icon = OLEMSGICON.OLEMSGICON_WARNING;
             }
 
-            var uiShell = (IVsUIShell)serviceProvider.GetService(typeof(SVsUIShell));
+            var uiShell = (IVsUIShell)_serviceProvider.GetService(typeof(SVsUIShell));
             if (uiShell != null)
             {
                 var clsid = Guid.Empty;
@@ -82,22 +81,12 @@ namespace Microsoft.SnippetDesigner
             }
         }
 
-        private __ACTIVITYLOG_ENTRYTYPE ToEntryType(LogType logType)
+        private static __ACTIVITYLOG_ENTRYTYPE ToEntryType(LogType logType) => logType switch
         {
-            switch (logType)
-            {
-                case LogType.Information:
-                    return __ACTIVITYLOG_ENTRYTYPE.ALE_INFORMATION;
-
-                case LogType.Warning:
-                    return __ACTIVITYLOG_ENTRYTYPE.ALE_WARNING;
-
-                case LogType.Error:
-                    return __ACTIVITYLOG_ENTRYTYPE.ALE_ERROR;
-
-                default:
-                    return __ACTIVITYLOG_ENTRYTYPE.ALE_INFORMATION;
-            }
-        }
+            LogType.Information => __ACTIVITYLOG_ENTRYTYPE.ALE_INFORMATION,
+            LogType.Warning => __ACTIVITYLOG_ENTRYTYPE.ALE_WARNING,
+            LogType.Error => __ACTIVITYLOG_ENTRYTYPE.ALE_ERROR,
+            _ => __ACTIVITYLOG_ENTRYTYPE.ALE_INFORMATION,
+        };
     }
 }

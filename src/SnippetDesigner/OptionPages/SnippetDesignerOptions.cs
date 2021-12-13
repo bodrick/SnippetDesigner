@@ -17,7 +17,6 @@ namespace Microsoft.SnippetDesigner.OptionPages
     public class SnippetDesignerOptions : DialogPage
     {
         private readonly string defaultSnippetIndexLocation;
-        private List<string> indexedSnippetDirectories;
         private string indexedSnippetDirectoriesString;
 
         /// <summary>
@@ -31,7 +30,7 @@ namespace Microsoft.SnippetDesigner.OptionPages
         {
             // Initialize indexedSnippetDirectories to all snippet directories
             // if the user already modified this it will be overwritten
-            indexedSnippetDirectories = new List<string>();
+            IndexedSnippetDirectories = new List<string>();
 
             var version = SnippetDesignerPackage.Instance.VSVersion;
             var versionPart = version.Equals("10.0") ? "" : version;
@@ -41,7 +40,7 @@ namespace Microsoft.SnippetDesigner.OptionPages
 
         [Browsable(false)]
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-        public IEnumerable<string> AllSnippetDirectories => indexedSnippetDirectories.Union(SnippetDirectories.Instance.Value.DefaultSnippetDirectories);
+        public IEnumerable<string> AllSnippetDirectories => IndexedSnippetDirectories.Union(SnippetDirectories.Instance.Value.DefaultSnippetDirectories);
 
         [Category("Editor")]
         [DisplayName("Default Language")]
@@ -98,13 +97,9 @@ namespace Microsoft.SnippetDesigner.OptionPages
 
         [Category("Search")]
         [Description("Additional directories where you want snippets to be indexed.  The indexer will index all sub-directories in each of these directories.")]
-        [EditorAttribute(typeof(StringCollectionEditor), typeof(UITypeEditor))]
+        [Editor(typeof(StringCollectionEditor), typeof(UITypeEditor))]
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-        public List<string> IndexedSnippetDirectories
-        {
-            get => indexedSnippetDirectories;
-            set => indexedSnippetDirectories = value;
-        }
+        public List<string> IndexedSnippetDirectories { get; set; }
 
         /// <summary>
         /// Gets or sets the indexed snippet directories string.
@@ -116,13 +111,13 @@ namespace Microsoft.SnippetDesigner.OptionPages
         [Browsable(false)]
         public string IndexedSnippetDirectoriesString
         {
-            get => indexedSnippetDirectories != null ? string.Join(";", indexedSnippetDirectories) : string.Empty;
+            get => IndexedSnippetDirectories != null ? string.Join(";", IndexedSnippetDirectories) : string.Empty;
             set
             {
-                if (value != null && !value.Equals(indexedSnippetDirectoriesString, StringComparison.OrdinalIgnoreCase))
+                if (value?.Equals(indexedSnippetDirectoriesString, StringComparison.OrdinalIgnoreCase) == false)
                 {
                     indexedSnippetDirectoriesString = value;
-                    indexedSnippetDirectories = new List<string>(indexedSnippetDirectoriesString.Split(';'));
+                    IndexedSnippetDirectories = new List<string>(indexedSnippetDirectoriesString.Split(';'));
                 }
             }
         }
@@ -136,7 +131,7 @@ namespace Microsoft.SnippetDesigner.OptionPages
         [Category("Index")]
         [DisplayName("Snippet Index Location")]
         [Description("Where would you like to have the snippet index stored?")]
-        [EditorAttribute(typeof(CustomFileNameEditor), typeof(UITypeEditor))]
+        [Editor(typeof(CustomFileNameEditor), typeof(UITypeEditor))]
         public string SnippetIndexLocation { get; set; }
 
         public void ResetSnippetIndexDirectories() => IndexedSnippetDirectories = new List<string>();

@@ -4,13 +4,13 @@ namespace SnippetDesignerComponents
 {
     public static class SnippetRegexPatterns
     {
-        private const string potentialReplacementStringFormat = @"^{0}$";
-        private const string replacementStringFormat = @"((?<!{1}){1}{0}{1})|((?<={1}{0}{1}){1}{0}{1})";
-        private const string replacmentPart = @"(("".*"")|(\w+))";
+        private const string PotentialReplacementStringFormat = @"^{0}$";
+        private const string ReplacementStringFormat = @"((?<!{1}){1}{0}{1})|((?<={1}{0}{1}){1}{0}{1})";
+        private const string ReplacementPart = @"(("".*"")|(\w+))";
 
         public static Regex BuildValidPotentialReplacementRegex()
         {
-            var validPotentialReplacement = string.Format(potentialReplacementStringFormat, replacmentPart);
+            var validPotentialReplacement = string.Format(PotentialReplacementStringFormat, ReplacementPart);
             return new Regex(validPotentialReplacement, RegexOptions.Compiled);
         }
 
@@ -20,10 +20,6 @@ namespace SnippetDesignerComponents
             return new Regex(validReplacementString, RegexOptions.Compiled);
         }
 
-        public static string BuildValidReplacementString(string delimiter)
-        {
-            var validReplacementString = string.Format(replacementStringFormat, replacmentPart, Regex.Escape(delimiter));
-            return validReplacementString;
-        }
+        public static string BuildValidReplacementString(string delimiter) => string.Format(ReplacementStringFormat, ReplacementPart, Regex.Escape(delimiter));
     }
 }

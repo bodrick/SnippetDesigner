@@ -11,27 +11,26 @@ namespace Microsoft.SnippetDesigner
     [AttributeUsage(AttributeTargets.Property)]
     public sealed class AppCmdLineArgumentAttribute : Attribute
     {
-        private readonly string description = "";
-        private readonly string name = "";
-
         /// <summary>Attribute constructor.</summary>
+        /// <param name="optionName"></param>
+        /// <param name="descrip"></param>
         public AppCmdLineArgumentAttribute(string optionName, string descrip)
         {
-            name = optionName;
-            description = descrip;
+            Name = optionName;
+            Description = descrip;
         }
 
         /// <summary>
         ///  Holds the description of the property to which this is
         /// associated.
         /// </summary>
-        public string Description => description;
+        public string Description { get; }
 
         /// <summary>
         ///  Holds the name of the command line option that is associated with
         /// this property.
         /// </summary>
-        public string Name => name;
+        public string Name { get; }
     }
 
     /// <summary>
@@ -44,16 +43,19 @@ namespace Microsoft.SnippetDesigner
         private readonly StringDictionary Params;
 
         /// <summary>
+        /// <para>
         ///    Regular expressions to split each command line arguments into its parts.
         ///     ^-{1,2} this defines any argument which starts with "-" or "--"
         ///     |^/| this defines any argument that starts with "/"
         ///     |=|:| this defines the split delimiter could be = or :
         ///   Thus the above regular expression could be used to split the following arguments samples into
         ///   key value pairs
-        ///
+        /// </para>
+        /// <para>
         ///     /plugin:"Name of the plugin"
         ///     /trace=true
         ///     /debug:false
+        /// </para>
         ///
         /// </summary>
         private readonly Regex splitter = new Regex(@"^-{1,2}|^/|=|:", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -84,12 +86,9 @@ namespace Microsoft.SnippetDesigner
                     //. In the above example argument_parts[1] will have plugin
                     //. and argument_parts[2] will have the actual string "Microsoft ASP.NET Analyzer"
                     case 3:
-                        if (param != null)
+                        if (param != null && !Params.ContainsKey(param))
                         {
-                            if (!Params.ContainsKey(param))
-                            {
-                                Params.Add(param, "true");
-                            }
+                            Params.Add(param, "true");
                         }
                         param = argument_parts[1];
 
@@ -104,12 +103,9 @@ namespace Microsoft.SnippetDesigner
                     //. The argument has only 2 parts like /trace
                     //. argument_parts[1] will be set to trace
                     case 2:
-                        if (param != null)
+                        if (param != null && !Params.ContainsKey(param))
                         {
-                            if (!Params.ContainsKey(param))
-                            {
-                                Params.Add(param, "true");
-                            }
+                            Params.Add(param, "true");
                         }
                         param = argument_parts[1];
                         break;
@@ -118,23 +114,17 @@ namespace Microsoft.SnippetDesigner
                     //. In the above example argument_parts[0] would be true so the previous option's value is set to true
                     //.
                     case 1:
-                        if (param != null)
+                        if (param != null && !Params.ContainsKey(param))
                         {
-                            if (!Params.ContainsKey(param))
-                            {
-                                Trim(ref argument_parts[0]);
-                                Params.Add(param, argument_parts[0]);
-                            }
+                            Trim(ref argument_parts[0]);
+                            Params.Add(param, argument_parts[0]);
                         }
                         break;
                 }
             }
-            if (param != null)
+            if (param != null && !Params.ContainsKey(param))
             {
-                if (!Params.ContainsKey(param))
-                {
-                    Params.Add(param, "true");
-                }
+                Params.Add(param, "true");
             }
         }
 
@@ -149,7 +139,7 @@ namespace Microsoft.SnippetDesigner
         ///    Update the property value on the SnippetFile object passed whose AppCmdLineArgumentAttribute
         /// name matches the name of the option.
         /// </summary>
-        /// <param name="SnippetFile">Any instance of a class</param>
+        /// <param name="theApp"></param>
         public void UpdateParams(object theApp)
         {
             if (theApp == null)
@@ -157,11 +147,9 @@ namespace Microsoft.SnippetDesigner
                 return;
             }
 
-            var properties = theApp.GetType().GetProperties();
-
-            for (var i = 0; i < properties.Length; i++)
+            foreach (var propertyInfo in theApp.GetType().GetProperties())
             {
-                foreach (Attribute attribute in properties[i].GetCustomAttributes(false))
+                foreach (Attribute attribute in propertyInfo.GetCustomAttributes(false))
                 {
                     if (attribute is AppCmdLineArgumentAttribute)
                     {
@@ -170,25 +158,25 @@ namespace Microsoft.SnippetDesigner
                         {
                             var propertyValue = new object[1];
 
-                            if (properties[i].PropertyType == typeof(string))
+                            if (propertyInfo.PropertyType == typeof(string))
                             {
                                 propertyValue[0] = Params[argAttrib.Name];
                             }
-                            else if (properties[i].PropertyType == typeof(int))
+                            else if (propertyInfo.PropertyType == typeof(int))
                             {
                                 propertyValue[0] = int.Parse(Params[argAttrib.Name]);
                             }
-                            else if (properties[i].PropertyType == typeof(bool))
+                            else if (propertyInfo.PropertyType == typeof(bool))
                             {
                                 propertyValue[0] = bool.Parse(Params[argAttrib.Name]);
                             }
-                            properties[i].GetSetMethod().Invoke(theApp, propertyValue);
+                            propertyInfo.GetSetMethod().Invoke(theApp, propertyValue);
                         }
                     }
                 }
             }
         }
 
-        private void Trim(ref string Value) => Value = trimQuotes.Replace(Value, "$1");
-    };
+        private void Trim(ref string value) => value = trimQuotes.Replace(value, "$1");
+    }
 }

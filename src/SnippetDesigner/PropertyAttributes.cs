@@ -25,7 +25,7 @@ namespace Microsoft.SnippetDesigner
         /// <summary>
         /// Looks up the localized name of the specified category.
         /// </summary>
-        /// <param name="value">The identifer for the category to look up.</param>
+        /// <param name="value">The identifier for the category to look up.</param>
         /// <returns>
         /// The localized name of the category, or null if a localized name does not exist.
         /// </returns>
@@ -37,7 +37,7 @@ namespace Microsoft.SnippetDesigner
     [AttributeUsage(AttributeTargets.All)]
     internal sealed class LocalizableDescriptionAttribute : DescriptionAttribute
     {
-        private bool replaced;
+        private bool _replaced;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="LocalizableDescriptionAttribute"/> class.
@@ -56,9 +56,9 @@ namespace Microsoft.SnippetDesigner
         {
             get
             {
-                if (!replaced)
+                if (!_replaced)
                 {
-                    replaced = true;
+                    _replaced = true;
                     DescriptionValue = SR.GetString(base.Description);
                 }
                 return base.Description;
@@ -66,34 +66,33 @@ namespace Microsoft.SnippetDesigner
         }
     }
     /// <summary>
-    /// Localizable dispaly name attribute
+    /// Localizable display name attribute
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Property | AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
     internal sealed class LocalizableDisplayNameAttribute : DisplayNameAttribute
     {
-        private readonly string name;
+        private readonly string _name;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="LocalizableDisplayNameAttribute"/> class.
         /// </summary>
         /// <param name="name">The name.</param>
-        public LocalizableDisplayNameAttribute(string name) => this.name = name;
+        public LocalizableDisplayNameAttribute(string name) => _name = name;
 
         /// <summary>
         /// Gets the display name for a property, event, or public void method that takes no arguments stored in this attribute.
         /// </summary>
-        /// <value></value>
         /// <returns>The display name.</returns>
         public override string DisplayName
         {
             get
             {
-                var result = SR.GetString(name);
+                var result = SR.GetString(_name);
 
                 if (result == null)
                 {
-                    Debug.Assert(false, "String resource '" + name + "' is missing");
-                    result = name;
+                    Debug.Fail("String resource '" + _name + "' is missing");
+                    result = _name;
                 }
 
                 return result;
@@ -101,7 +100,7 @@ namespace Microsoft.SnippetDesigner
         }
     }
     /// <summary>
-    /// Provide ability to use resouces with the attributes listed above
+    /// Provide ability to use resources with the attributes listed above
     /// </summary>
     internal sealed class SR
     {
@@ -130,15 +129,15 @@ namespace Microsoft.SnippetDesigner
         internal const string PropNameSnippetReferences = "PropNameSnippetReferences";
         internal const string PropNameSnippetShortcut = "PropNameSnippetShortcut";
         internal const string PropNameSnippetType = "PropNameSnippetType";
-        private static SR loader;
-        private static object s_InternalSyncObject;
-        private readonly ResourceManager resources;
+        private static object _internalSyncObject;
+        private static SR _loader;
+        private readonly ResourceManager _resources;
 
         internal SR() =>
             //store the local resource manager
-            resources = SnippetDesigner.Resources.ResourceManager;
+            _resources = SnippetDesigner.Resources.ResourceManager;
 
-        public static ResourceManager Resources => GetLoader().resources;
+        public static ResourceManager Resources => GetLoader()._resources;
 
         private static CultureInfo Culture => null /*use ResourceManager default, CultureInfo.CurrentUICulture*/;
 
@@ -146,12 +145,12 @@ namespace Microsoft.SnippetDesigner
         {
             get
             {
-                if (s_InternalSyncObject == null)
+                if (_internalSyncObject == null)
                 {
                     var o = new object();
-                    Interlocked.CompareExchange(ref s_InternalSyncObject, o, null);
+                    Interlocked.CompareExchange(ref _internalSyncObject, o, null);
                 }
-                return s_InternalSyncObject;
+                return _internalSyncObject;
             }
         }
 
@@ -159,24 +158,18 @@ namespace Microsoft.SnippetDesigner
         /// Get object from resource file
         /// </summary>
         /// <param name="name"></param>
-        /// <returns></returns>
         public static object GetObject(string name)
         {
             var sys = GetLoader();
-            if (sys == null)
-            {
-                return null;
-            }
 
-            return sys.resources.GetObject(name, Culture);
+            return sys?._resources.GetObject(name, Culture);
         }
 
         /// <summary>
-        /// Get a string froma resource file
+        /// Get a string from resource file
         /// </summary>
         /// <param name="name">resource string</param>
         /// <param name="args"></param>
-        /// <returns></returns>
         public static string GetString(string name, params object[] args)
         {
             var sys = GetLoader();
@@ -185,52 +178,35 @@ namespace Microsoft.SnippetDesigner
                 return null;
             }
 
-            var res = sys.resources.GetString(name, Culture);
+            var res = sys._resources.GetString(name, Culture);
 
-            if (args != null && args.Length > 0)
-            {
-                return string.Format(CultureInfo.CurrentCulture, res, args);
-            }
-            else
-            {
-                return res;
-            }
+            return args?.Length > 0 ? string.Format(CultureInfo.CurrentCulture, res, args) : res;
         }
 
         /// <summary>
-        /// Get a string froma resource file
+        /// Get a string from resource file
         /// </summary>
         /// <param name="name">resource string</param>
-        /// <returns></returns>
         public static string GetString(string name)
         {
             var sys = GetLoader();
-            if (sys == null)
-            {
-                return null;
-            }
-
-            return sys.resources.GetString(name, Culture);
+            return sys?._resources.GetString(name, Culture);
         }
 
         /// <summary>
         /// Get the resource file and make sure we have snippetExplorerForm over it
         /// </summary>
-        /// <returns></returns>
         private static SR GetLoader()
         {
-            if (loader == null)
+            if (_loader == null)
             {
                 lock (InternalSyncObject)
                 {
-                    if (loader == null)
-                    {
-                        loader = new SR();
-                    }
+                    _loader ??= new SR();
                 }
             }
 
-            return loader;
+            return _loader;
         }
     }
 }

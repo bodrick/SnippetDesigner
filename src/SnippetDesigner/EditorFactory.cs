@@ -16,17 +16,28 @@ namespace Microsoft.SnippetDesigner
     [Guid(GuidList.editorFactoryString)]
     public class EditorFactory : IVsEditorFactory, IDisposable
     {
-        private readonly SnippetDesignerPackage editorPackage;
-        private bool disposed;
-        private ServiceProvider vsServiceProvider;
+        private readonly SnippetDesignerPackage _editorPackage;
+        private bool _disposed;
+        private ServiceProvider _vsServiceProvider;
 
         public EditorFactory(SnippetDesignerPackage package)
         {
             Trace.WriteLine(string.Format(CultureInfo.CurrentCulture, "Entering {0} constructor", ToString()));
-            editorPackage = package;
+            _editorPackage = package;
         }
 
-        #region IVsEditorFactory Members
+        // Use C# destructor syntax for finalization code.
+        // This destructor will run only if the Dispose method
+        // does not get called.
+        // It gives your base class the opportunity to finalize.
+        // Do not provide destructors in types derived from this class.
+        ~EditorFactory()
+        {
+            // Do not re-create Dispose clean-up code here.
+            // Calling Dispose(false) is optimal in terms of
+            // readability and maintainability.
+            Dispose(false);
+        }
 
         public int Close() => VSConstants.S_OK;
 
@@ -34,7 +45,7 @@ namespace Microsoft.SnippetDesigner
         /// Create an instance of the codeWindowHost
         /// </summary>
         /// <param name="grfCreateDoc"></param>
-        /// <param name="fileToLoad"></param>
+        /// <param name="pszMkDocument"></param>
         /// <param name="pszPhysicalView"></param>
         /// <param name="pvHier"></param>
         /// <param name="itemid"></param>
@@ -44,7 +55,6 @@ namespace Microsoft.SnippetDesigner
         /// <param name="pbstrEditorCaption"></param>
         /// <param name="pguidCmdUI"></param>
         /// <param name="pgrfCDW"></param>
-        /// <returns></returns>
         public int CreateEditorInstance(
             uint grfCreateDoc,
             string pszMkDocument,
@@ -70,7 +80,7 @@ namespace Microsoft.SnippetDesigner
             // Validate inputs
             if ((grfCreateDoc & (VSConstants.CEF_OPENFILE | VSConstants.CEF_SILENT)) == 0)
             {
-                Debug.Assert(false, "Only Open or Silent is valid");
+                Debug.Fail("Only Open or Silent is valid");
                 return VSConstants.E_INVALIDARG;
             }
             if (punkDocDataExisting != IntPtr.Zero)
@@ -79,7 +89,7 @@ namespace Microsoft.SnippetDesigner
             }
 
             // Create the Document (codeWindowHost)
-            var snipEditor = new SnippetEditor(editorPackage);
+            var snipEditor = new SnippetEditor(_editorPackage);
             ppunkDocView = Marshal.GetIUnknownForObject(snipEditor);
             ppunkDocData = Marshal.GetIUnknownForObject(snipEditor);
             pbstrEditorCaption = string.Empty;
@@ -87,10 +97,24 @@ namespace Microsoft.SnippetDesigner
             return VSConstants.S_OK;
         }
 
+        // Implement IDisposable.
+        // Do not make this method virtual.
+        // A derived class should not be able to override this method.
+        public void Dispose()
+        {
+            Dispose(true);
+            // This object will be cleaned up by the Dispose method.
+            // Therefore, you should call GC.SuppressFinalize to
+            // take this object off the finalization queue
+            // and prevent finalization code for this object
+            // from executing a second time.
+            GC.SuppressFinalize(this);
+        }
+
         public object GetService(Type serviceType)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            return vsServiceProvider.GetService(serviceType);
+            return _vsServiceProvider.GetService(serviceType);
         }
 
         // This method is called by the Environment (inside IVsUIShellOpenDocument::
@@ -131,47 +155,14 @@ namespace Microsoft.SnippetDesigner
             {
                 return VSConstants.S_OK; // primary view uses NULL as pbstrPhysicalView
             }
-            else
-            {
-                return VSConstants.E_NOTIMPL; // you must return E_NOTIMPL for any unrecognized rguidLogicalView values
-            }
+
+            return VSConstants.E_NOTIMPL; // you must return E_NOTIMPL for any unrecognized rguidLogicalView values
         }
 
         public int SetSite(IServiceProvider psp)
         {
-            vsServiceProvider = new ServiceProvider(psp, false);
+            _vsServiceProvider = new ServiceProvider(psp, false);
             return VSConstants.S_OK;
-        }
-
-        #endregion IVsEditorFactory Members
-
-        #region IDisposable
-
-        // Use C# destructor syntax for finalization code.
-        // This destructor will run only if the Dispose method
-        // does not get called.
-        // It gives your base class the opportunity to finalize.
-        // Do not provide destructors in types derived from this class.
-        ~EditorFactory()
-        {
-            // Do not re-create Dispose clean-up code here.
-            // Calling Dispose(false) is optimal in terms of
-            // readability and maintainability.
-            Dispose(false);
-        }
-
-        // Implement IDisposable.
-        // Do not make this method virtual.
-        // A derived class should not be able to override this method.
-        public void Dispose()
-        {
-            Dispose(true);
-            // This object will be cleaned up by the Dispose method.
-            // Therefore, you should call GC.SupressFinalize to
-            // take this object off the finalization queue
-            // and prevent finalization code for this object
-            // from executing a second time.
-            GC.SuppressFinalize(this);
         }
 
         // Dispose(bool disposing) executes in two distinct scenarios.
@@ -185,7 +176,7 @@ namespace Microsoft.SnippetDesigner
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             // Check to see if Dispose has already been called.
-            if (!disposed)
+            if (!_disposed)
             {
                 // If disposing equals true, dispose all managed
                 // and unmanaged resources.
@@ -198,14 +189,9 @@ namespace Microsoft.SnippetDesigner
                 // unmanaged resources here.
                 // If disposing is false,
                 // only the following code is executed.
-                if (vsServiceProvider != null)
-                {
-                    vsServiceProvider.Dispose();
-                }
+                _vsServiceProvider?.Dispose();
             }
-            disposed = true;
+            _disposed = true;
         }
-
-        #endregion IDisposable
     }
 }

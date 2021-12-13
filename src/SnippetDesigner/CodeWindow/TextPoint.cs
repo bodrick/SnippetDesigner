@@ -7,44 +7,33 @@ namespace Microsoft.SnippetDesigner
     /// </summary>
     public class TextPoint
     {
-        private int bufferLine;
-        private int lineIndex;
-
         public TextPoint(int line, int index)
         {
-            bufferLine = line;
-            lineIndex = index;
+            Line = line;
+            Index = index;
         }
 
         public TextPoint()
         {
-            bufferLine = 0;
-            lineIndex = 0;
+            Line = 0;
+            Index = 0;
         }
 
         /// <summary>
         /// The index into the line
         /// </summary>
-        public int Index
-        {
-            get => lineIndex;
-            set => lineIndex = value;
-        }
+        public int Index { get; set; }
 
         /// <summary>
         ///  The line in the buffer
         /// </summary>
-        public int Line
-        {
-            get => bufferLine;
-            set => bufferLine = value;
-        }
+        public int Line { get; set; }
 
         // Overloading '<' operator:
-        public static bool operator <(TextPoint point1, TextPoint point2) => (point1.Index < point2.Index && point1.Line <= point2.Line);
+        public static bool operator <(TextPoint point1, TextPoint point2) => point1.Index < point2.Index && point1.Line <= point2.Line;
 
         // Overloading '>' operator:
-        public static bool operator >(TextPoint point1, TextPoint point2) => (point1.Index > point2.Index && point1.Line >= point2.Line);
+        public static bool operator >(TextPoint point1, TextPoint point2) => point1.Index > point2.Index && point1.Line >= point2.Line;
 
         // Override the Object.Equals(object o) method:
         public override bool Equals(object obj)
@@ -55,8 +44,7 @@ namespace Microsoft.SnippetDesigner
             }
             try
             {
-                var point2 = obj as TextPoint;
-                if (point2 == null)
+                if (obj is not TextPoint point2)
                 {
                     return false;
                 }
@@ -77,8 +65,8 @@ namespace Microsoft.SnippetDesigner
         /// <param name="point"></param>
         public void SetEqualTo(TextPoint point)
         {
-            lineIndex = point.Index;
-            bufferLine = point.Line;
+            Index = point.Index;
+            Line = point.Line;
         }
     }
 }

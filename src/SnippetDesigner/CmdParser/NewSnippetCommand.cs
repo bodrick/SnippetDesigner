@@ -5,9 +5,7 @@ namespace Microsoft.SnippetDesigner
     /// </summary>
     internal class NewSnippetCommand
     {
-        private readonly AppCmdLineArguments cmdLineArguments;
-        private string code = string.Empty;
-        private string language = string.Empty;
+        private readonly AppCmdLineArguments _cmdLineArguments;
 
         /// <summary>
         ///    Constructor that takes the list of command line arguments.
@@ -16,25 +14,17 @@ namespace Microsoft.SnippetDesigner
         internal NewSnippetCommand(string[] args)
         {
             // Create Command Line argument parser.
-            cmdLineArguments = new AppCmdLineArguments(args);
+            _cmdLineArguments = new AppCmdLineArguments(args);
 
-            // Update this class properties like PluginName, ListPluins etc based on
+            // Update this class properties like PluginName, List Plugins etc based on
             // user supplied command line arguments.
-            cmdLineArguments.UpdateParams(this);
+            _cmdLineArguments.UpdateParams(this);
         }
 
         [AppCmdLineArgument("code", "Text in the code snippet")]
-        internal string Code
-        {
-            get => code;
-            set => code = value;
-        }
+        internal string Code { get; set; } = string.Empty;
 
         [AppCmdLineArgument("lang", "Language of the code snippet")]
-        internal string Language
-        {
-            get => language;
-            set => language = value;
-        }
+        internal string Language { get; set; } = string.Empty;
     }
 }

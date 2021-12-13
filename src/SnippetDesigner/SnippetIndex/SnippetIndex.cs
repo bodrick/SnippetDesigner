@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -17,28 +16,29 @@ namespace Microsoft.SnippetDesigner
     /// </summary>
     public class SnippetIndex : INotifyPropertyChanged
     {
-        private readonly List<Tuple<Func<SnippetIndexItem, string>, int>> fieldRankings = new List<Tuple<Func<SnippetIndexItem, string>, int>>
-                                    {
-                                        Tuple.Create<Func<SnippetIndexItem, string>, int>(snippet => snippet.Title, 10),
-                                        Tuple.Create<Func<SnippetIndexItem, string>, int>(snippet => snippet.Code, 5),
-                                        Tuple.Create<Func<SnippetIndexItem, string>, int>(snippet => snippet.Description, 3),
-                                        Tuple.Create<Func<SnippetIndexItem, string>, int>(snippet => snippet.Keywords, 2),
-                                        Tuple.Create<Func<SnippetIndexItem, string>, int>(snippet => Path.GetFileNameWithoutExtension(snippet.File), 2)
-                                    };
+        private readonly List<Tuple<Func<SnippetIndexItem, string>, int>> _fieldRankings =
+            new()
+            {
+                Tuple.Create<Func<SnippetIndexItem, string>, int>(snippet => snippet.Title, 10),
+                Tuple.Create<Func<SnippetIndexItem, string>, int>(snippet => snippet.Code, 5),
+                Tuple.Create<Func<SnippetIndexItem, string>, int>(snippet => snippet.Description, 3),
+                Tuple.Create<Func<SnippetIndexItem, string>, int>(snippet => snippet.Keywords, 2),
+                Tuple.Create<Func<SnippetIndexItem, string>, int>(snippet => Path.GetFileNameWithoutExtension(snippet.File), 2)
+            };
 
         // Maps SnippetFilePath|SnippetTitle to SnippetIndexItem
-        private readonly Dictionary<string, SnippetIndexItem> indexedSnippets;
+        private readonly Dictionary<string, SnippetIndexItem> _indexedSnippets;
 
-        private readonly ILogger logger;
-        private readonly string snippetIndexFilePath;
-        private bool isIndexLoading;
-        private bool isIndexUpdating;
+        private readonly ILogger _logger;
+        private readonly string _snippetIndexFilePath;
+        private bool _isIndexLoading;
+        private bool _isIndexUpdating;
 
         public SnippetIndex()
         {
-            snippetIndexFilePath = SnippetDesignerPackage.Instance.Settings.SnippetIndexLocation;
-            indexedSnippets = new Dictionary<string, SnippetIndexItem>();
-            logger = SnippetDesignerPackage.Instance.Logger;
+            _snippetIndexFilePath = SnippetDesignerPackage.Instance.Settings.SnippetIndexLocation;
+            _indexedSnippets = new Dictionary<string, SnippetIndexItem>();
+            _logger = SnippetDesignerPackage.Instance.Logger;
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -51,13 +51,13 @@ namespace Microsoft.SnippetDesigner
         /// </value>
         public bool IsIndexLoading
         {
-            get => isIndexLoading;
+            get => _isIndexLoading;
             set
             {
-                if (isIndexLoading != value)
+                if (_isIndexLoading != value)
                 {
-                    isIndexLoading = value;
-                    OnPropertyChanged("IsIndexLoading");
+                    _isIndexLoading = value;
+                    OnPropertyChanged(nameof(IsIndexLoading));
                 }
             }
         }
@@ -70,13 +70,13 @@ namespace Microsoft.SnippetDesigner
         /// </value>
         public bool IsIndexUpdating
         {
-            get => isIndexUpdating;
+            get => _isIndexUpdating;
             set
             {
-                if (isIndexUpdating != value)
+                if (_isIndexUpdating != value)
                 {
-                    isIndexUpdating = value;
-                    OnPropertyChanged("IsIndexUpdating");
+                    _isIndexUpdating = value;
+                    OnPropertyChanged(nameof(IsIndexUpdating));
                 }
             }
         }
@@ -84,6 +84,7 @@ namespace Microsoft.SnippetDesigner
         /// <summary>
         /// Reads the snippet object and adds the right data to the index
         /// </summary>
+        /// <param name="currentSnippet"></param>
         /// <param name="filePath">the path of the file</param>
         public void CreateIndexItemDataFromSnippet(Snippet currentSnippet, string filePath)
         {
@@ -91,9 +92,9 @@ namespace Microsoft.SnippetDesigner
             UpdateIndexItemData(item, currentSnippet);
             item.File = filePath;
 
-            lock (indexedSnippets)
+            lock (_indexedSnippets)
             {
-                indexedSnippets[GetDictionaryKey(filePath, item.Title)] = item;
+                _indexedSnippets[GetDictionaryKey(filePath, item.Title)] = item;
             }
         }
 
@@ -101,7 +102,6 @@ namespace Microsoft.SnippetDesigner
         /// Create a new index file by reading all snippet files
         /// and building them in internal memory then writing them to the index file
         /// </summary>
-        /// <returns></returns>
         public bool CreateOrUpdateIndexFile()
         {
             try
@@ -114,12 +114,12 @@ namespace Microsoft.SnippetDesigner
                         continue;
                     }
 
-                    var snippetFilePaths = Directory.GetFiles(path, SnippetSearch.AllSnippets, SearchOption.AllDirectories);
-                    foreach (var snippetPath in snippetFilePaths)
+                    foreach (var snippetPath in Directory.GetFiles(path, SnippetSearch.AllSnippets, SearchOption.AllDirectories))
                     {
                         AddOrUpdateSnippetsToIndexFromSnippetFile(snippetPath);
                     }
                 }
+
                 IsIndexUpdating = false;
 
                 //write the snippetitemcolllection to disk
@@ -127,7 +127,7 @@ namespace Microsoft.SnippetDesigner
             }
             catch (Exception e)
             {
-                logger.Log("Unable to read snippet index directories", "SnippetIndex", e);
+                _logger.Log("Unable to read snippet index directories", "SnippetIndex", e);
             }
 
             return false;
@@ -142,17 +142,17 @@ namespace Microsoft.SnippetDesigner
         {
             if (string.IsNullOrEmpty(filePath))
             {
-                throw new ArgumentNullException("filePath", "filePath must not be null");
+                throw new ArgumentNullException(nameof(filePath), "filePath must not be null");
             }
 
             if (string.IsNullOrEmpty(title))
             {
-                throw new ArgumentNullException("title", "title must not be null");
+                throw new ArgumentNullException(nameof(title), "title must not be null");
             }
 
             try
             {
-                lock (indexedSnippets)
+                lock (_indexedSnippets)
                 {
                     if (File.Exists(filePath))
                     {
@@ -161,7 +161,7 @@ namespace Microsoft.SnippetDesigner
                     }
 
                     // Remove file from index
-                    indexedSnippets.Remove(GetDictionaryKey(filePath, title));
+                    _indexedSnippets.Remove(GetDictionaryKey(filePath, title));
 
                     //save index file changes to disk
                     SaveIndexFile();
@@ -169,7 +169,7 @@ namespace Microsoft.SnippetDesigner
             }
             catch (IOException e)
             {
-                logger.Log("Unable to delete snippet file", "SnippetIndex", e);
+                _logger.Log("Unable to delete snippet file", "SnippetIndex", e);
             }
         }
 
@@ -182,25 +182,25 @@ namespace Microsoft.SnippetDesigner
         /// <returns>collection of found snippets</returns>
         public IEnumerable<SnippetIndexItem> PerformSnippetSearch(string searchString, List<string> languagesToGet, int maxResultCount)
         {
-            var filterSnippets = indexedSnippets.Where(x => languagesToGet.Any(lang => lang.Equals(x.Value.Language, StringComparison.OrdinalIgnoreCase)));
+            var filterSnippets = _indexedSnippets.Where(x =>
+                languagesToGet.Any(lang => lang.Equals(x.Value.Language, StringComparison.OrdinalIgnoreCase)));
             if (string.IsNullOrEmpty(searchString))
             {
                 return filterSnippets.Select(x => x.Value).Take(maxResultCount);
             }
 
             var matchRankings = new List<Tuple<Regex, double>>
-                                    {
-                                        Tuple.Create(CreateRegex(@"\b{0}\b", searchString), 1.0),
-                                        Tuple.Create(CreateRegex(@"{0}", searchString), 0.1)
-                                    };
+            {
+                Tuple.Create(CreateRegex(@"\b{0}\b", searchString), 1.0), Tuple.Create(CreateRegex(@"{0}", searchString), 0.1)
+            };
 
             var search = from snippet in filterSnippets
-                         from fieldRanking in fieldRankings
+                         from fieldRanking in _fieldRankings
                          from matchRanking in matchRankings
                          where matchRanking.Item1.IsMatch(fieldRanking.Item1(snippet.Value))
                          let rank = fieldRanking.Item2 * matchRanking.Item2
                          group rank by snippet.Value
-                         into matchResults
+                into matchResults
                          orderby matchResults.Sum(x => x) descending
                          select matchResults.Key;
 
@@ -210,7 +210,6 @@ namespace Microsoft.SnippetDesigner
         /// <summary>
         /// Read the index file from disk into memory
         /// </summary>
-        /// <returns></returns>
         public bool ReadIndexFile()
         {
             IsIndexLoading = true;
@@ -218,42 +217,38 @@ namespace Microsoft.SnippetDesigner
             try
             {
                 //load the index file into memory
-                stream = new FileStream(snippetIndexFilePath, FileMode.Open);
+                stream = new FileStream(_snippetIndexFilePath, FileMode.Open);
                 var items = Load(stream);
                 if (items == null || items.Count == 0)
                 {
                     return false;
                 }
-                else
+
+                foreach (var item in items)
                 {
-                    foreach (var item in items)
+                    lock (_indexedSnippets)
                     {
-                        lock (indexedSnippets)
+                        if (File.Exists(item.File))
                         {
-                            if (File.Exists(item.File))
+                            var key = GetDictionaryKey(item.File, item.Title);
+                            if (!_indexedSnippets.ContainsKey(key))
                             {
-                                var key = GetDictionaryKey(item.File, item.Title);
-                                if (!indexedSnippets.ContainsKey(key))
-                                {
-                                    indexedSnippets.Add(key, item);
-                                }
+                                _indexedSnippets.Add(key, item);
                             }
                         }
                     }
-                    return true;
                 }
+
+                return true;
             }
             catch (Exception e)
             {
-                logger.Log("Unable to open snippet index file at path: " + snippetIndexFilePath, "SnippetIndex", e);
+                _logger.Log("Unable to open snippet index file at path: " + _snippetIndexFilePath, "SnippetIndex", e);
                 return false;
             }
             finally
             {
-                if (stream != null)
-                {
-                    stream.Close();
-                }
+                stream?.Close();
 
                 IsIndexLoading = false;
             }
@@ -264,10 +259,11 @@ namespace Microsoft.SnippetDesigner
         /// </summary>
         public void RebuildSnippetIndex()
         {
-            lock (indexedSnippets)
+            lock (_indexedSnippets)
             {
-                indexedSnippets.Clear();
+                _indexedSnippets.Clear();
             }
+
             CreateOrUpdateIndexFile();
         }
 
@@ -275,8 +271,7 @@ namespace Microsoft.SnippetDesigner
         /// Update a  snippet item in the collection based upon the current filepath
         /// then swap the item with the new one
         /// </summary>
-        /// <param name="updatedSnippet">The updated snippet.</param>
-        /// <returns></returns>
+        /// <param name="updatedSnippetFile"></param>
         public bool UpdateSnippetFile(SnippetFile updatedSnippetFile)
         {
             // Find keys to remove
@@ -291,7 +286,7 @@ namespace Microsoft.SnippetDesigner
             foreach (var snippet in updatedSnippetFile.Snippets)
             {
                 var key = GetDictionaryKey(updatedSnippetFile.FileName, snippet.Title);
-                indexedSnippets.TryGetValue(key, out var item);
+                _indexedSnippets.TryGetValue(key, out var item);
                 if (item != null)
                 {
                     UpdateIndexItemData(item, snippet);
@@ -306,7 +301,7 @@ namespace Microsoft.SnippetDesigner
             if (snippetsToAdd.Count > 0)
             {
                 // Figure out which keys are no longer valid
-                foreach (var key in indexedSnippets.Keys)
+                foreach (var key in _indexedSnippets.Keys)
                 {
                     if (key.Contains(updatedSnippetFile.FileName.ToUpperInvariant()) &&
                         !foundKeys.Contains(key))
@@ -319,7 +314,7 @@ namespace Microsoft.SnippetDesigner
                 // so we don't need to re-add it
                 if (updatedSnippetFile.Snippets.Count == 1 && keysToRemove.Count == 1)
                 {
-                    indexedSnippets.TryGetValue(keysToRemove[0], out var item);
+                    _indexedSnippets.TryGetValue(keysToRemove[0], out var item);
                     if (item != null)
                     {
                         UpdateIndexItemData(item, updatedSnippetFile.Snippets[0]);
@@ -330,9 +325,9 @@ namespace Microsoft.SnippetDesigner
                     // Remove those keys
                     foreach (var key in keysToRemove)
                     {
-                        lock (indexedSnippets)
+                        lock (_indexedSnippets)
                         {
-                            indexedSnippets.Remove(key);
+                            _indexedSnippets.Remove(key);
                         }
                     }
 
@@ -347,7 +342,8 @@ namespace Microsoft.SnippetDesigner
             return SaveIndexFile();
         }
 
-        private static Regex CreateRegex(string pattern, string arg) => new Regex(string.Format(pattern, Regex.Escape(arg)), RegexOptions.IgnoreCase);
+        private static Regex CreateRegex(string pattern, string arg) =>
+            new(string.Format(pattern, Regex.Escape(arg)), RegexOptions.IgnoreCase);
 
         /// <summary>
         /// Loads the data for this index item from a snippet file
@@ -360,7 +356,7 @@ namespace Microsoft.SnippetDesigner
                 var snippetFile = new SnippetFile(filePath);
                 foreach (var currentSnippet in snippetFile.Snippets)
                 {
-                    indexedSnippets.TryGetValue(GetDictionaryKey(filePath, currentSnippet.Title), out var existingItem);
+                    _indexedSnippets.TryGetValue(GetDictionaryKey(filePath, currentSnippet.Title), out var existingItem);
                     if (existingItem == null)
                     {
                         //add the item to the collection
@@ -374,7 +370,7 @@ namespace Microsoft.SnippetDesigner
             }
             catch (IOException e)
             {
-                logger.Log("Unable to open snippet file at path: " + filePath, "SnippetIndex", e);
+                _logger.Log("Unable to open snippet file at path: " + filePath, "SnippetIndex", e);
                 return false;
             }
 
@@ -386,8 +382,8 @@ namespace Microsoft.SnippetDesigner
         /// </summary>
         /// <param name="filePath">The file path.</param>
         /// <param name="title">The title.</param>
-        /// <returns></returns>
-        private string GetDictionaryKey(string filePath, string title) => filePath.ToUpperInvariant().Trim() + "|" + title.ToUpperInvariant().Trim();
+        private static string GetDictionaryKey(string filePath, string title) =>
+            filePath.ToUpperInvariant().Trim() + "|" + title.ToUpperInvariant().Trim();
 
         /// <summary>
         ///  Deserialize or Load this object member values from an XML file
@@ -400,13 +396,9 @@ namespace Microsoft.SnippetDesigner
             {
                 return null;
             }
-            List<SnippetIndexItem> retval = null;
 
-            XmlSerializer ser = null;
-            ser = new XmlSerializer(typeof(List<SnippetIndexItem>));
-            retval = (List<SnippetIndexItem>)ser.Deserialize(stream);
-
-            return retval;
+            var ser = new XmlSerializer(typeof(List<SnippetIndexItem>));
+            return (List<SnippetIndexItem>)ser.Deserialize(stream);
         }
 
         /// <summary>
@@ -416,10 +408,7 @@ namespace Microsoft.SnippetDesigner
         private void OnPropertyChanged(string propertyName)
         {
             VerifyProperty(propertyName);
-            if (PropertyChanged != null)
-            {
-                PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
-            }
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
         /// <summary>
@@ -435,7 +424,7 @@ namespace Microsoft.SnippetDesigner
             }
 
             var ser = new XmlSerializer(typeof(List<SnippetIndexItem>));
-            var items = new List<SnippetIndexItem>(indexedSnippets.Values);
+            var items = new List<SnippetIndexItem>(_indexedSnippets.Values);
             ser.Serialize(stream, items);
 
             return true;
@@ -451,21 +440,18 @@ namespace Microsoft.SnippetDesigner
             FileStream stream = null;
             try
             {
-                var dirPath = Path.GetDirectoryName(snippetIndexFilePath);
+                var dirPath = Path.GetDirectoryName(_snippetIndexFilePath);
                 Directory.CreateDirectory(dirPath);
-                stream = new FileStream(snippetIndexFilePath, FileMode.Create);
+                stream = new FileStream(_snippetIndexFilePath, FileMode.Create);
                 return Save(stream);
             }
             catch (Exception e)
             {
-                logger.Log("Unable to write to snippet index file at path: " + snippetIndexFilePath, "SnippetIndex", e);
+                _logger.Log("Unable to write to snippet index file at path: " + _snippetIndexFilePath, "SnippetIndex", e);
             }
             finally
             {
-                if (stream != null)
-                {
-                    stream.Close();
-                }
+                stream?.Close();
             }
 
             return false;
@@ -475,8 +461,8 @@ namespace Microsoft.SnippetDesigner
         /// Update a snippet index item with new values
         /// </summary>
         /// <param name="item">item to update</param>
-        /// <param name="snippetData">snipept data to update it with</param>
-        private void UpdateIndexItemData(SnippetIndexItem item, Snippet snippetData)
+        /// <param name="snippetData">snippet data to update it with</param>
+        private static void UpdateIndexItemData(SnippetIndexItem item, Snippet snippetData)
         {
             item.Title = snippetData.Title;
             item.Author = snippetData.Author;
@@ -492,7 +478,7 @@ namespace Microsoft.SnippetDesigner
         /// is actually a property on the object.
         /// </summary>
         /// <param name="propertyName">Name of the property</param>
-        [SuppressMessage("Microsoft.Globalization", "CA1305:SpecifyIFormatProvider", MessageId = "System.String.Format(System.String,System.Object,System.Object)"), Conditional("DEBUG")]
+        [Conditional("DEBUG")]
         private void VerifyProperty(string propertyName)
         {
             var propertyExists = TypeDescriptor.GetProperties(this).Find(propertyName, false) != null;

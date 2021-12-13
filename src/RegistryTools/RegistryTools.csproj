@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
-    <SignAssembly>True</SignAssembly>
+    <SignAssembly>False</SignAssembly>
     <AssemblyOriginatorKeyFile>C:\Development\Github\SnippetDesigner\src\snippetdesigner.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 </Project>

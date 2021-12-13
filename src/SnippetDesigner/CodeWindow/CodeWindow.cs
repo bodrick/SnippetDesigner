@@ -32,7 +32,6 @@ namespace Microsoft.SnippetDesigner
         private SnippetEditor snippetEditor;
         private IConnectionPoint textLinesEventsConnectionPoint;
         private IConnectionPoint textViewEventsConnectionPoint;
-        private IVsTextView viewAdapter;
 
         /// <summary>
         /// Constructor for the code window which is a user snippetExplorerForm that hosts a vscodewindow
@@ -79,10 +78,8 @@ namespace Microsoft.SnippetDesigner
                     //ErrorHandler.ThrowOnFailure(vsTextLines.GetLineText(0, 0, numLines, lastLineIndex, out codeText));
                     //return codeText;
                 }
-                else
-                {
-                    return string.Empty;
-                }
+
+                return string.Empty;
             }
             set
             {
@@ -94,12 +91,9 @@ namespace Microsoft.SnippetDesigner
                         {
                             SetText(value);
                         }
-                        else
+                        else if (InitializeText(value))
                         {
-                            if (InitializeText(value))
-                            {
-                                isTextInitialized = true;
-                            }
+                            isTextInitialized = true;
                         }
                     }
                 }
@@ -111,14 +105,17 @@ namespace Microsoft.SnippetDesigner
         }
 
         /// <summary>
+        /// <para>
         /// The code windows parent CodeWindowHost.
         /// This is the Snippet CodeWindowHost that this code window needs a reference to.
-        ///
+        /// </para>
+        /// <para>
         /// The Set method is very important.  Our codewindow needs two things to be created.
         /// A reference to the parent codeWindowHost and the window handle.  Since we have both of these we can create
         /// the code window.  This code window can be created during the set here if we have the handle already
         /// or after this set in the OnHandleCreated event since by that point
         /// we will have both the handle and the parent codeWindowHost set
+        /// </para>
         /// </summary>
         internal ICodeWindowHost CodeWindowHost
         {
@@ -155,10 +152,8 @@ namespace Microsoft.SnippetDesigner
                     TextBufferAdapter.GetLineCount(out var lineCount);
                     return lineCount;
                 }
-                else
-                {
-                    return -1;
-                }
+
+                return -1;
             }
         }
 
@@ -172,14 +167,11 @@ namespace Microsoft.SnippetDesigner
             {
                 if (TextViewAdapter != null)
                 {
-                    var selectedText = string.Empty;
-                    TextViewAdapter.GetSelectedText(out selectedText);
+                    TextViewAdapter.GetSelectedText(out var selectedText);
                     return selectedText;
                 }
-                else
-                {
-                    return string.Empty;
-                }
+
+                return string.Empty;
             }
         }
 
@@ -221,9 +213,9 @@ namespace Microsoft.SnippetDesigner
         {
             get
             {
-                if (viewAdapter != null)
+                if (TextViewAdapter != null)
                 {
-                    return editorAdapterFactoryService.GetWpfTextView(viewAdapter);
+                    return editorAdapterFactoryService.GetWpfTextView(TextViewAdapter);
                 }
                 return null;
             }
@@ -232,7 +224,16 @@ namespace Microsoft.SnippetDesigner
         /// <summary>
         /// the primary view for the code window
         /// </summary>
-        internal IVsTextView TextViewAdapter => viewAdapter;
+        internal IVsTextView TextViewAdapter { get; private set; }
+
+        public static string GetSpanText(SnapshotSpan span) => span.GetText();
+
+        public static string GetWordFromPosition(SnapshotPoint positon)
+        {
+            var span = GetWordSpanFromPosition(positon);
+
+            return span.GetText();
+        }
 
         public static bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c == '_';
 
@@ -243,16 +244,7 @@ namespace Microsoft.SnippetDesigner
             return charAtPos;
         }
 
-        public string GetSpanText(SnapshotSpan span) => span.GetText();
-
         public string GetWordFromCurrentPosition() => GetWordFromPosition(TextView.Caret.Position.BufferPosition);
-
-        public string GetWordFromPosition(SnapshotPoint positon)
-        {
-            var span = GetWordSpanFromPosition(positon);
-
-            return span.GetText();
-        }
 
         public SnapshotSpan GetWordTextSpanFromCurrentPosition() => GetWordSpanFromPosition(TextView.Caret.Position.BufferPosition);
 
@@ -262,8 +254,8 @@ namespace Microsoft.SnippetDesigner
             var oleServiceProvider = codeWindowHost.ServiceProvider;
             bufferAdapter = editorAdapterFactoryService.CreateVsTextBufferAdapter(oleServiceProvider, codeSnippetContentType);
             var result = bufferAdapter.InitializeContent("", 0);
-            viewAdapter = editorAdapterFactoryService.CreateVsTextViewAdapter(oleServiceProvider);
-            ((IVsWindowPane)viewAdapter).SetSite(oleServiceProvider);
+            TextViewAdapter = editorAdapterFactoryService.CreateVsTextViewAdapter(oleServiceProvider);
+            ((IVsWindowPane)TextViewAdapter).SetSite(oleServiceProvider);
 
             var initView = new[] { new INITVIEW() };
             initView[0].fSelectionMargin = 1;
@@ -290,7 +282,7 @@ namespace Microsoft.SnippetDesigner
                 (uint)TextViewInitFlags3.VIF_NO_HWND_SUPPORT |
                 readOnlyValue;
 
-            viewAdapter.Initialize(bufferAdapter as IVsTextLines, Handle, flags, initView);
+            TextViewAdapter.Initialize(bufferAdapter as IVsTextLines, Handle, flags, initView);
         }
 
         /// <summary>
@@ -305,10 +297,8 @@ namespace Microsoft.SnippetDesigner
                 TextBufferAdapter.GetLengthOfLine(line, out var lineLength);
                 return lineLength;
             }
-            else
-            {
-                return -1;
-            }
+
+            return -1;
         }
 
         /// <summary>
@@ -320,10 +310,7 @@ namespace Microsoft.SnippetDesigner
             VisualStudio.Shell.ThreadHelper.ThrowIfNotOnUIThread();
             if (disposing)
             {
-                if (components != null)
-                {
-                    components.Dispose();
-                }
+                components?.Dispose();
                 if (cookieTextLineEvents != 0)
                 {
                     textLinesEventsConnectionPoint.Unadvise(cookieTextLineEvents);
@@ -333,21 +320,21 @@ namespace Microsoft.SnippetDesigner
                     textViewEventsConnectionPoint.Unadvise(cookieTextViewEvents);
                 }
 
-                if (viewAdapter != null)
-                {
-                    ((IVsWindowPane)viewAdapter).ClosePane();
-                }
+                ((IVsWindowPane)TextViewAdapter)?.ClosePane();
             }
             base.Dispose(disposing);
         }
 
         /// <summary>
-        /// This gets called once this snippetExplorerForm has recieved its windows handle
+        /// <para>
+        /// This gets called once this snippetExplorerForm has received its windows handle
         /// This is important since we need this inorder to create the vs code window
         /// since we create the code window pane ourselves
-        ///
+        /// </para>
+        /// <para>
         /// If this gets called before codeWindowHost is set then we must not create the code window yet
         /// it will be created when codeWindowHost gets set
+        /// </para>
         /// </summary>
         /// <param name="e"></param>
         protected override void OnHandleCreated(EventArgs e)
@@ -390,10 +377,8 @@ namespace Microsoft.SnippetDesigner
 
                 return new SnapshotSpan(positon.Snapshot, left, right + 1 - left);
             }
-            else
-            {
-                return new SnapshotSpan(positon, 1);
-            }
+
+            return new SnapshotSpan(positon, 1);
         }
 
         /// <summary>
@@ -421,13 +406,13 @@ namespace Microsoft.SnippetDesigner
             var hr = VSConstants.S_OK;
 
             //create the codewindow as the size of the snippetExplorerForm its in
-            hr = ((IVsWindowPane)viewAdapter).CreatePaneWindow(Handle, 0, 0, Parent.Size.Width, Parent.Size.Height, out hWndCodeWindow);
+            hr = ((IVsWindowPane)TextViewAdapter).CreatePaneWindow(Handle, 0, 0, Parent.Size.Width, Parent.Size.Height, out hWndCodeWindow);
 
             //we are only getting events if the codewindowhost is the snippet editor)
             if (snippetEditor != null)
             {
                 // sink IVsTextViewEvents, so we can determine when a VsCodeWindow object actually has the focus.
-                var connptCntr = (IConnectionPointContainer)viewAdapter;
+                var connptCntr = (IConnectionPointContainer)TextViewAdapter;
                 var riid = typeof(IVsTextViewEvents).GUID;
 
                 //find the desired connection point
@@ -450,13 +435,8 @@ namespace Microsoft.SnippetDesigner
 
         private bool InitializeText(string newText)
         {
-            newText = newText ?? "";
-            if (ErrorHandler.Failed(bufferAdapter.InitializeContent(newText, newText.Length)))
-            {
-                return false;
-            }
-
-            return true;
+            newText ??= "";
+            return !ErrorHandler.Failed(bufferAdapter.InitializeContent(newText, newText.Length));
         }
 
         private void RegisterCodeSnippetContentType()

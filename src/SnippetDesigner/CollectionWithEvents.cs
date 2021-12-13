@@ -56,7 +56,7 @@ namespace Microsoft.SnippetDesigner
         protected override void RemoveItem(int index)
         {
             base.RemoveItem(index);
-            OnCollectionChanged(default(T), CollectionOperation.Remove, index);
+            OnCollectionChanged(default, CollectionOperation.Remove, index);
         }
 
         protected override void SetItem(int index, T item)
@@ -65,12 +65,6 @@ namespace Microsoft.SnippetDesigner
             OnCollectionChanged(item, CollectionOperation.Set, index);
         }
 
-        private void OnCollectionChanged(T item, CollectionOperation operation, int index)
-        {
-            if (CollectionChanged != null)
-            {
-                CollectionChanged(this, new CollectionEventArgs<T>(item, operation, index));
-            }
-        }
+        private void OnCollectionChanged(T item, CollectionOperation operation, int index) => CollectionChanged?.Invoke(this, new CollectionEventArgs<T>(item, operation, index));
     }
 }
